@@ -84,30 +84,28 @@ def consultar():
             'erro': 'Você não tem mais permissão para esta filial.'
         })
     
-    placa_chassi = request.form.get('placa_chassi', '').strip()
+    placa = request.form.get('placa_chassi', '').strip()
+    uf = request.form.get('uf', 'SP').strip()
+    renavam = request.form.get('renavam', '').strip()
+    chassi = request.form.get('chassi', '').strip()
     tipo_busca = request.form.get('tipo_busca', 'placa')
     
-    if not placa_chassi:
+    if not placa:
         return jsonify({
             'sucesso': False,
-            'erro': 'Por favor, informe a placa ou chassi do veículo.'
+            'erro': 'Por favor, informe a placa do veículo.'
         })
     
     # Validação
-    if tipo_busca == 'placa' and not validar_placa(placa_chassi):
+    if not validar_placa(placa):
         return jsonify({
             'sucesso': False,
             'erro': 'Formato de placa inválido. Use: ABC-1234 ou ABC1D23 (Mercosul).'
         })
-    elif tipo_busca == 'chassi' and not validar_chassi(placa_chassi):
-        return jsonify({
-            'sucesso': False,
-            'erro': 'Formato de chassi inválido. O chassi deve ter 17 caracteres alfanuméricos.'
-        })
     
-    # Realiza consulta (simulada)
+    # Realiza consulta
     try:
-        resultado = consultar_veiculo_api(placa_chassi, tipo_busca)
+        resultado = consultar_veiculo_api(placa, uf, renavam, chassi)
         
         # Registra auditoria
         Auditoria.registrar(
@@ -199,79 +197,110 @@ def _resumo_resultado(resultado):
     return f"{dados.get('modelo', 'N/A')} | {dados.get('cor', 'N/A')} | {dados.get('ano_modelo', 'N/A')}"
 
 
-def consultar_veiculo_api(placa_chassi, tipo_busca):
-    """Consulta veículo via API Infosimples."""
+def consultar_veiculo_api(placa, uf, renavam=None, chassi=None):
+    """Consulta restrições via API Infosimples."""
     import requests
-    from flask import current_app
+    import base64
+    import os
+    from flask import current_app, session
+    from app.models import Filial
     
     api_key = current_app.config.get('INFOSIMPLES_API_KEY')
     if not api_key:
         raise Exception('API Key Infosimples não configurada')
     
-    placa_normalizada = re.sub(r'[^A-Z0-9]', '', placa_chassi.upper())
+    # Normaliza placa
+    placa_normalizada = re.sub(r'[^A-Z0-9]', '', placa.upper())
     
-    # Endpoint Infosimples
-    url = 'https://api.infosimples.com/api/v2/consultas/detran/sp/veiculo'
+    # Endpoint correto
+    url = 'https://api.infosimples.com/api/v2/consultas/detran/restricoes'
     
-    params = {
-        'placa': placa_normalizada,
+    # Parâmetros obrigatórios
+    data = {
         'token': api_key,
+        'uf': uf.upper(),
+        'placa': placa_normalizada,
+        'renavam': renavam or '00000000000',
+        'chassi': chassi or 'XXXXXXXXXXXXXXXXX',
         'timeout': 300
     }
     
+    # Para SP, precisa de certificado digital
+    if uf.upper() == 'SP':
+        filial_id = session.get('filial_conectada_id')
+        if filial_id:
+            filial = Filial.query.get(filial_id)
+            if filial and filial.cert_path:
+                cert_path = filial.cert_path
+                cert_pass = filial.get_cert_senha()
+                
+                # Lê e codifica certificado em base64
+                if os.path.exists(cert_path):
+                    with open(cert_path, 'rb') as f:
+                        cert_data = base64.b64encode(f.read()).decode('utf-8')
+                    data['pkcs12_cert'] = cert_data
+                    data['pkcs12_pass'] = cert_pass
+    
     try:
-        response = requests.get(url, params=params, timeout=60)
-        data = response.json()
+        response = requests.post(url, data=data, timeout=120)
+        resp_data = response.json()
+        
+        # Debug: mostra resposta
+        print(f"API Response: {resp_data}")
         
         # Verifica sucesso da API
-        if data.get('code') != 200:
-            error_msg = data.get('message', 'Erro na consulta')
-            if 'not_found' in str(data.get('code_message', '')).lower():
-                return {'encontrado': False, 'erro': 'Veículo não encontrado'}
-            raise Exception(error_msg)
+        code = resp_data.get('code', 0)
+        if code != 200:
+            error_msg = resp_data.get('code_message', 'Erro na consulta')
+            raise Exception(f'API: {error_msg}')
         
         # Extrai dados da resposta
-        veiculo = data.get('data', [{}])[0] if data.get('data') else {}
+        veiculo = resp_data.get('data', [{}])[0] if resp_data.get('data') else {}
         
-        # Formata resposta no padrão do sistema
+        # Formata resposta
+        restricoes_lista = veiculo.get('restricoes', [])
+        if isinstance(restricoes_lista, str):
+            restricoes_lista = [restricoes_lista]
+        
         resultado = {
             'encontrado': True,
             'dados_veiculo': {
                 'placa': veiculo.get('placa', placa_normalizada),
-                'chassi': veiculo.get('chassi', 'N/A'),
-                'renavam': veiculo.get('renavam', 'N/A'),
-                'modelo': veiculo.get('modelo', veiculo.get('marca_modelo', 'N/A')),
-                'ano_fabricacao': veiculo.get('ano_fabricacao', 'N/A'),
-                'ano_modelo': veiculo.get('ano_modelo', 'N/A'),
-                'cor': veiculo.get('cor', 'N/A'),
-                'combustivel': veiculo.get('combustivel', 'N/A'),
-                'categoria': veiculo.get('categoria', veiculo.get('tipo', 'N/A')),
-                'uf': veiculo.get('uf', 'SP')
+                'chassi': veiculo.get('chassi', veiculo.get('normalizado_chassi', 'N/A')),
+                'renavam': veiculo.get('renavam', veiculo.get('normalizado_renavam', 'N/A')),
+                'modelo': 'Consulta de Restrições',
+                'ano_fabricacao': 'N/A',
+                'ano_modelo': 'N/A',
+                'cor': 'N/A',
+                'combustivel': 'N/A',
+                'categoria': 'N/A',
+                'uf': uf.upper()
             },
             'multas': {
-                'possui_multas': bool(veiculo.get('debitos_multas')),
-                'quantidade': len(veiculo.get('multas', [])) if veiculo.get('multas') else 0,
-                'valor_total': float(veiculo.get('debitos_multas', 0) or 0),
-                'detalhes': veiculo.get('multas', [])
+                'possui_multas': False,
+                'quantidade': 0,
+                'valor_total': 0,
+                'detalhes': []
             },
             'ipva': {
-                'situacao': veiculo.get('situacao_ipva', 'N/A'),
-                'ano_referencia': veiculo.get('ano_ipva', 2024),
-                'valor': float(veiculo.get('debitos_ipva', 0) or 0),
+                'situacao': 'N/A',
+                'ano_referencia': 2024,
+                'valor': 0,
                 'vencimento': 'N/A'
             },
             'restricoes': {
-                'possui_restricoes': bool(veiculo.get('restricoes')),
-                'detalhes': veiculo.get('restricoes', []) if isinstance(veiculo.get('restricoes'), list) else []
+                'possui_restricoes': veiculo.get('existe_restricao', bool(restricoes_lista)),
+                'detalhes': [{'tipo': r} for r in restricoes_lista] if restricoes_lista else []
             },
             'leilao': {
-                'possui_historico_leilao': bool(veiculo.get('leilao')),
-                'detalhes': veiculo.get('leilao')
+                'possui_historico_leilao': False,
+                'detalhes': None
             },
             'proprietarios': {
-                'quantidade': 1,
-                'historico': [{'tipo': 'Atual', 'uf': veiculo.get('uf', 'SP'), 'periodo': 'Atual'}]
-            }
+                'quantidade': 0,
+                'historico': []
+            },
+            'site_receipt': veiculo.get('site_receipt', '')
         }
         
         return resultado
@@ -280,4 +309,5 @@ def consultar_veiculo_api(placa_chassi, tipo_busca):
         raise Exception('Timeout na consulta. Tente novamente.')
     except requests.exceptions.RequestException as e:
         raise Exception(f'Erro de conexão: {str(e)}')
+
 
