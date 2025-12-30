@@ -200,100 +200,84 @@ def _resumo_resultado(resultado):
 
 
 def consultar_veiculo_api(placa_chassi, tipo_busca):
-    """Simula consulta à API (mock para demonstração)."""
+    """Consulta veículo via API Infosimples."""
+    import requests
+    from flask import current_app
     
-    veiculos_simulados = {
-        'ABC1234': {
-            'encontrado': True,
-            'dados_veiculo': {
-                'placa': 'ABC-1234',
-                'chassi': '9BWZZZ377VT004251',
-                'renavam': '123456789',
-                'modelo': 'Volkswagen Gol 1.0',
-                'ano_fabricacao': 2020,
-                'ano_modelo': 2021,
-                'cor': 'Prata',
-                'combustivel': 'Flex',
-                'categoria': 'Particular',
-                'uf': 'SP'
-            },
-            'multas': {
-                'possui_multas': True,
-                'quantidade': 2,
-                'valor_total': 293.47,
-                'detalhes': [
-                    {'data': '15/03/2024', 'descricao': 'Excesso de velocidade até 20%', 'valor': 130.16, 'local': 'Av. Paulista, 1000 - São Paulo/SP'},
-                    {'data': '22/08/2024', 'descricao': 'Estacionar em local proibido', 'valor': 163.31, 'local': 'Rua Augusta, 500 - São Paulo/SP'}
-                ]
-            },
-            'ipva': {'situacao': 'PAGO', 'ano_referencia': 2024, 'valor': 1250.00, 'vencimento': '15/01/2024'},
-            'restricoes': {'possui_restricoes': False, 'detalhes': []},
-            'leilao': {'possui_historico_leilao': False, 'detalhes': None},
-            'proprietarios': {'quantidade': 2, 'historico': [
-                {'tipo': 'Pessoa Física', 'uf': 'SP', 'periodo': '2020 - 2022'},
-                {'tipo': 'Pessoa Física', 'uf': 'SP', 'periodo': '2022 - Atual'}
-            ]}
-        },
-        'XYZ9876': {
-            'encontrado': True,
-            'dados_veiculo': {
-                'placa': 'XYZ-9876', 'chassi': '9BGRD08X04G117974', 'renavam': '987654321',
-                'modelo': 'Chevrolet Onix Plus 1.0 Turbo', 'ano_fabricacao': 2022, 'ano_modelo': 2023,
-                'cor': 'Preto', 'combustivel': 'Flex', 'categoria': 'Particular', 'uf': 'RJ'
-            },
-            'multas': {'possui_multas': False, 'quantidade': 0, 'valor_total': 0, 'detalhes': []},
-            'ipva': {'situacao': 'PENDENTE', 'ano_referencia': 2024, 'valor': 2100.00, 'vencimento': '20/02/2024'},
-            'restricoes': {'possui_restricoes': True, 'detalhes': [
-                {'tipo': 'Alienação Fiduciária', 'instituicao': 'Banco Bradesco S.A.', 'data_inclusao': '10/01/2023'}
-            ]},
-            'leilao': {'possui_historico_leilao': False, 'detalhes': None},
-            'proprietarios': {'quantidade': 1, 'historico': [{'tipo': 'Pessoa Física', 'uf': 'RJ', 'periodo': '2023 - Atual'}]}
-        },
-        'DEF5678': {
-            'encontrado': True,
-            'dados_veiculo': {
-                'placa': 'DEF-5678', 'chassi': '93Y4SRD64EJ123456', 'renavam': '456789123',
-                'modelo': 'Toyota Corolla XEi 2.0', 'ano_fabricacao': 2018, 'ano_modelo': 2019,
-                'cor': 'Branco Pérola', 'combustivel': 'Flex', 'categoria': 'Particular', 'uf': 'MG'
-            },
-            'multas': {'possui_multas': True, 'quantidade': 5, 'valor_total': 1520.89, 'detalhes': [
-                {'data': '05/01/2024', 'descricao': 'Avançar sinal vermelho', 'valor': 293.47, 'local': 'Av. Afonso Pena - BH/MG'},
-                {'data': '12/02/2024', 'descricao': 'Excesso de velocidade acima de 50%', 'valor': 880.41, 'local': 'BR-040, Km 15 - MG'}
-            ]},
-            'ipva': {'situacao': 'ATRASADO', 'ano_referencia': 2024, 'valor': 3200.00, 'vencimento': '18/03/2024'},
-            'restricoes': {'possui_restricoes': True, 'detalhes': [
-                {'tipo': 'Roubo/Furto', 'data_inclusao': '25/11/2023', 'boletim_ocorrencia': 'BO 2023/123456'}
-            ]},
-            'leilao': {'possui_historico_leilao': True, 'detalhes': {
-                'leiloeiro': 'Leilões Brasil S.A.', 'data_leilao': '15/06/2020',
-                'motivo': 'Recuperado de Sinistro', 'condicao': 'Avarias de Média Monta'
-            }},
-            'proprietarios': {'quantidade': 4, 'historico': [
-                {'tipo': 'Pessoa Jurídica', 'uf': 'SP', 'periodo': '2019 - 2020'},
-                {'tipo': 'Leiloeiro Oficial', 'uf': 'SP', 'periodo': '2020 - 2020'},
-                {'tipo': 'Pessoa Física', 'uf': 'MG', 'periodo': '2020 - 2022'},
-                {'tipo': 'Pessoa Física', 'uf': 'MG', 'periodo': '2022 - Atual'}
-            ]}
-        }
-    }
+    api_key = current_app.config.get('INFOSIMPLES_API_KEY')
+    if not api_key:
+        raise Exception('API Key Infosimples não configurada')
     
     placa_normalizada = re.sub(r'[^A-Z0-9]', '', placa_chassi.upper())
     
-    if placa_normalizada in veiculos_simulados:
-        return veiculos_simulados[placa_normalizada]
+    # Endpoint Infosimples
+    url = 'https://api.infosimples.com/api/v2/consultas/detran/sp/veiculo'
     
-    # Retorno genérico
-    return {
-        'encontrado': True,
-        'dados_veiculo': {
-            'placa': placa_chassi.upper(), 'chassi': f'9BWZZZ377VT{hash(placa_chassi) % 999999:06d}',
-            'renavam': f'{hash(placa_chassi) % 999999999:09d}', 'modelo': 'Fiat Argo 1.0',
-            'ano_fabricacao': 2021, 'ano_modelo': 2022, 'cor': 'Vermelho',
-            'combustivel': 'Flex', 'categoria': 'Particular', 'uf': 'SP'
-        },
-        'multas': {'possui_multas': False, 'quantidade': 0, 'valor_total': 0, 'detalhes': []},
-        'ipva': {'situacao': 'PAGO', 'ano_referencia': 2024, 'valor': 980.00, 'vencimento': '10/01/2024'},
-        'restricoes': {'possui_restricoes': False, 'detalhes': []},
-        'leilao': {'possui_historico_leilao': False, 'detalhes': None},
-        'proprietarios': {'quantidade': 1, 'historico': [{'tipo': 'Pessoa Física', 'uf': 'SP', 'periodo': '2022 - Atual'}]}
+    params = {
+        'placa': placa_normalizada,
+        'token': api_key,
+        'timeout': 300
     }
+    
+    try:
+        response = requests.get(url, params=params, timeout=60)
+        data = response.json()
+        
+        # Verifica sucesso da API
+        if data.get('code') != 200:
+            error_msg = data.get('message', 'Erro na consulta')
+            if 'not_found' in str(data.get('code_message', '')).lower():
+                return {'encontrado': False, 'erro': 'Veículo não encontrado'}
+            raise Exception(error_msg)
+        
+        # Extrai dados da resposta
+        veiculo = data.get('data', [{}])[0] if data.get('data') else {}
+        
+        # Formata resposta no padrão do sistema
+        resultado = {
+            'encontrado': True,
+            'dados_veiculo': {
+                'placa': veiculo.get('placa', placa_normalizada),
+                'chassi': veiculo.get('chassi', 'N/A'),
+                'renavam': veiculo.get('renavam', 'N/A'),
+                'modelo': veiculo.get('modelo', veiculo.get('marca_modelo', 'N/A')),
+                'ano_fabricacao': veiculo.get('ano_fabricacao', 'N/A'),
+                'ano_modelo': veiculo.get('ano_modelo', 'N/A'),
+                'cor': veiculo.get('cor', 'N/A'),
+                'combustivel': veiculo.get('combustivel', 'N/A'),
+                'categoria': veiculo.get('categoria', veiculo.get('tipo', 'N/A')),
+                'uf': veiculo.get('uf', 'SP')
+            },
+            'multas': {
+                'possui_multas': bool(veiculo.get('debitos_multas')),
+                'quantidade': len(veiculo.get('multas', [])) if veiculo.get('multas') else 0,
+                'valor_total': float(veiculo.get('debitos_multas', 0) or 0),
+                'detalhes': veiculo.get('multas', [])
+            },
+            'ipva': {
+                'situacao': veiculo.get('situacao_ipva', 'N/A'),
+                'ano_referencia': veiculo.get('ano_ipva', 2024),
+                'valor': float(veiculo.get('debitos_ipva', 0) or 0),
+                'vencimento': 'N/A'
+            },
+            'restricoes': {
+                'possui_restricoes': bool(veiculo.get('restricoes')),
+                'detalhes': veiculo.get('restricoes', []) if isinstance(veiculo.get('restricoes'), list) else []
+            },
+            'leilao': {
+                'possui_historico_leilao': bool(veiculo.get('leilao')),
+                'detalhes': veiculo.get('leilao')
+            },
+            'proprietarios': {
+                'quantidade': 1,
+                'historico': [{'tipo': 'Atual', 'uf': veiculo.get('uf', 'SP'), 'periodo': 'Atual'}]
+            }
+        }
+        
+        return resultado
+        
+    except requests.exceptions.Timeout:
+        raise Exception('Timeout na consulta. Tente novamente.')
+    except requests.exceptions.RequestException as e:
+        raise Exception(f'Erro de conexão: {str(e)}')
+
