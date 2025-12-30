@@ -198,12 +198,19 @@ def editar_filial(id):
 def listar_auditoria():
     """Lista o log de auditoria."""
     page = request.args.get('page', 1, type=int)
+    busca = request.args.get('busca', '').strip()
     per_page = 50
-    
-    auditorias = Auditoria.query\
+
+    query = Auditoria.query
+
+    # Filtro de busca
+    if busca:
+        query = query.filter(Auditoria.placa_chassi.ilike(f'%{busca}%'))
+
+    auditorias = query\
         .order_by(Auditoria.data_consulta.desc())\
         .paginate(page=page, per_page=per_page, error_out=False)
-    
+
     return render_template('admin/auditoria.html', auditorias=auditorias)
 
 
@@ -234,3 +241,48 @@ def auditoria_json():
             for a in auditorias
         ]
     })
+
+
+@admin_bp.route('/auditoria/excel')
+@admin_required
+def auditoria_excel():
+    """Exporta auditoria em Excel (CSV)."""
+    from flask import Response
+    import csv
+    from io import StringIO
+
+    auditorias = Auditoria.query\
+        .order_by(Auditoria.data_consulta.desc())\
+        .limit(1000)\
+        .all()
+
+    output = StringIO()
+    writer = csv.writer(output, delimiter=';')
+
+    # Header
+    writer.writerow([
+        'Data/Hora', 'Usuario', 'Filial', 'Placa/Chassi',
+        'Tipo', 'Status', 'IP', 'Resultado'
+    ])
+
+    # Dados
+    for a in auditorias:
+        writer.writerow([
+            a.data_consulta.strftime('%d/%m/%Y %H:%M:%S'),
+            a.usuario.nome if a.usuario else 'N/A',
+            a.filial.nome if a.filial else 'N/A',
+            a.placa_chassi,
+            a.tipo_busca,
+            a.status,
+            a.ip_origem or '',
+            a.resultado or ''
+        ])
+
+    output.seek(0)
+    return Response(
+        output.getvalue(),
+        mimetype='text/csv',
+        headers={
+            'Content-Disposition': 'attachment; filename=auditoria_i9.csv'
+        }
+    )
