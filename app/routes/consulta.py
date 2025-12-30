@@ -111,7 +111,7 @@ def consultar():
         Auditoria.registrar(
             usuario_id=current_user.id,
             filial_id=filial_id,
-            placa_chassi=placa_chassi,
+            placa_chassi=placa,
             tipo_busca=tipo_busca,
             resultado=_resumo_resultado(resultado),
             status='sucesso' if resultado.get('encontrado') else 'nao_encontrado',
@@ -128,7 +128,7 @@ def consultar():
         Auditoria.registrar(
             usuario_id=current_user.id,
             filial_id=filial_id,
-            placa_chassi=placa_chassi,
+            placa_chassi=placa,
             tipo_busca=tipo_busca,
             resultado=str(e),
             status='erro',
