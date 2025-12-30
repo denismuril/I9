@@ -197,21 +197,49 @@ def editar_filial(id):
 @admin_required
 def listar_auditoria():
     """Lista o log de auditoria."""
+    from datetime import datetime, timedelta
+
     page = request.args.get('page', 1, type=int)
     busca = request.args.get('busca', '').strip()
+    usuario_id = request.args.get('usuario_id', type=int)
+    data_inicio = request.args.get('data_inicio', '')
+    data_fim = request.args.get('data_fim', '')
     per_page = 50
 
     query = Auditoria.query
 
-    # Filtro de busca
+    # Filtro de busca por placa
     if busca:
         query = query.filter(Auditoria.placa_chassi.ilike(f'%{busca}%'))
+
+    # Filtro por usuário
+    if usuario_id:
+        query = query.filter(Auditoria.usuario_id == usuario_id)
+
+    # Filtro por período
+    if data_inicio:
+        try:
+            dt_inicio = datetime.strptime(data_inicio, '%Y-%m-%d')
+            query = query.filter(Auditoria.data_consulta >= dt_inicio)
+        except ValueError:
+            pass
+
+    if data_fim:
+        try:
+            dt_fim = datetime.strptime(data_fim, '%Y-%m-%d') + timedelta(days=1)
+            query = query.filter(Auditoria.data_consulta < dt_fim)
+        except ValueError:
+            pass
 
     auditorias = query\
         .order_by(Auditoria.data_consulta.desc())\
         .paginate(page=page, per_page=per_page, error_out=False)
 
-    return render_template('admin/auditoria.html', auditorias=auditorias)
+    usuarios = Usuario.query.filter_by(ativo=True).order_by(Usuario.nome).all()
+
+    return render_template('admin/auditoria.html',
+                           auditorias=auditorias,
+                           usuarios=usuarios)
 
 
 @admin_bp.route('/auditoria/json')

@@ -145,12 +145,18 @@ def consultar():
 @login_required
 def historico():
     """Retorna o histórico de consultas do usuário."""
-    auditorias = Auditoria.query\
-        .filter_by(usuario_id=current_user.id)\
+    busca = request.args.get('busca', '').strip()
+
+    query = Auditoria.query.filter_by(usuario_id=current_user.id)
+
+    if busca:
+        query = query.filter(Auditoria.placa_chassi.ilike(f'%{busca}%'))
+
+    auditorias = query\
         .order_by(Auditoria.data_consulta.desc())\
-        .limit(50)\
+        .limit(100)\
         .all()
-    
+
     return jsonify({
         'sucesso': True,
         'consultas': [

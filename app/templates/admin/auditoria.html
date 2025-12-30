@@ -13,19 +13,44 @@
 </header>
 
 <main class="max-w-7xl mx-auto px-4 py-8">
-    <!-- Busca -->
+    <!-- Filtros -->
     <div class="glass-effect bg-white/10 rounded-2xl p-4 mb-6 border border-white/20">
-        <form method="GET" class="flex flex-wrap gap-4 items-end">
-            <div class="flex-1 min-w-[200px]">
-                <label class="text-blue-200 text-sm">Buscar por Placa/Chassi/Renavam</label>
-                <input type="text" name="busca" value="{{ request.args.get('busca', '') }}"
-                    placeholder="Digite placa, chassi ou renavam..."
-                    class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200/50">
+        <form method="GET" class="grid grid-cols-1 md:grid-cols-6 gap-4 items-end">
+            <div>
+                <label class="text-blue-200 text-sm">Placa/Chassi</label>
+                <input type="text" name="busca" value="{{ request.args.get('busca', '') }}" placeholder="Buscar..."
+                    class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200/50 text-sm">
             </div>
-            <button type="submit" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">🔍
-                Buscar</button>
-            <a href="{{ url_for('admin.listar_auditoria') }}"
-                class="px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20">Limpar</a>
+            <div>
+                <label class="text-blue-200 text-sm">Usuário</label>
+                <select name="usuario_id"
+                    class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm">
+                    <option value="" class="bg-slate-800">Todos</option>
+                    {% for u in usuarios %}
+                    <option value="{{ u.id }}" {{ 'selected' if request.args.get('usuario_id')|int==u.id else '' }}
+                        class="bg-slate-800">{{ u.nome }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-blue-200 text-sm">Data Início</label>
+                <input type="date" name="data_inicio" value="{{ request.args.get('data_inicio', '') }}"
+                    class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm">
+            </div>
+            <div>
+                <label class="text-blue-200 text-sm">Data Fim</label>
+                <input type="date" name="data_fim" value="{{ request.args.get('data_fim', '') }}"
+                    class="w-full px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm">
+            </div>
+            <div>
+                <button type="submit"
+                    class="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">🔍
+                    Filtrar</button>
+            </div>
+            <div>
+                <a href="{{ url_for('admin.listar_auditoria') }}"
+                    class="block w-full px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20 text-sm text-center">Limpar</a>
+            </div>
         </form>
     </div>
 
@@ -73,12 +98,12 @@
         <!-- Paginação -->
         <div class="flex justify-center gap-2 mt-6">
             {% if auditorias.has_prev %}
-            <a href="{{ url_for('admin.listar_auditoria', page=auditorias.prev_num, busca=request.args.get('busca', '')) }}"
+            <a href="{{ url_for('admin.listar_auditoria', page=auditorias.prev_num, busca=request.args.get('busca', ''), usuario_id=request.args.get('usuario_id', ''), data_inicio=request.args.get('data_inicio', ''), data_fim=request.args.get('data_fim', '')) }}"
                 class="px-3 py-1 bg-white/10 text-white rounded hover:bg-white/20">←</a>
             {% endif %}
             <span class="px-3 py-1 text-blue-200">Página {{ auditorias.page }} de {{ auditorias.pages }}</span>
             {% if auditorias.has_next %}
-            <a href="{{ url_for('admin.listar_auditoria', page=auditorias.next_num, busca=request.args.get('busca', '')) }}"
+            <a href="{{ url_for('admin.listar_auditoria', page=auditorias.next_num, busca=request.args.get('busca', ''), usuario_id=request.args.get('usuario_id', ''), data_inicio=request.args.get('data_inicio', ''), data_fim=request.args.get('data_fim', '')) }}"
                 class="px-3 py-1 bg-white/10 text-white rounded hover:bg-white/20">→</a>
             {% endif %}
         </div>
