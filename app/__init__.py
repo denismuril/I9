@@ -57,9 +57,11 @@ def create_app(config_name='development'):
 
 
 def _criar_admin_padrao(db, Usuario):
-    """Cria usuário admin padrão se não existir nenhum."""
+    """Cria usuário admin padrão e filial de teste se não existirem."""
     from werkzeug.security import generate_password_hash
+    from app.models import Filial
     
+    # Cria admin se não existir
     if Usuario.query.filter_by(role='admin').first() is None:
         admin = Usuario(
             nome='Administrador',
@@ -71,3 +73,17 @@ def _criar_admin_padrao(db, Usuario):
         db.session.add(admin)
         db.session.commit()
         print("✅ Usuário admin criado: admin@i9sistema.com / admin123")
+    
+    # Cria filial Bexp Morumbi se não existir
+    if Filial.query.filter_by(cnpj='00000000000101').first() is None:
+        filial = Filial(
+            nome='Bexp Morumbi',
+            cnpj='00000000000101',
+            uf='SP',
+            endereco='São Paulo - SP',
+            cert_path='/home/ubuntu/I9/cert/morumbi.pfx',
+            ativa=True
+        )
+        db.session.add(filial)
+        db.session.commit()
+        print("✅ Filial Bexp Morumbi criada (configure CERT_FILIAL_1_PASS no .env)")
