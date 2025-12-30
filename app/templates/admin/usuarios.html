@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Gestão de Usuários - Sistema I9{% endblock %}
+
+{% block content %}
+<header class="glass-effect bg-white/5 border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('main.dashboard') }}" class="text-blue-200 hover:text-white">← Dashboard</a>
+            <span class="text-white font-bold">👥 Gestão de Usuários</span>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="px-4 py-2 bg-red-500/20 text-red-300 rounded-lg text-sm">Sair</a>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div
+        class="mb-4 p-3 rounded-lg text-sm {{ 'bg-green-500/20 text-green-200' if category == 'success' else 'bg-red-500/20 text-red-200' }}">
+        {{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <!-- Novo Usuário -->
+    <div class="glass-effect bg-white/10 rounded-2xl p-6 mb-8 border border-white/20">
+        <h2 class="text-xl font-bold text-white mb-4">➕ Novo Usuário</h2>
+        <form action="{{ url_for('admin.criar_usuario') }}" method="POST" class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <input type="text" name="nome" required placeholder="Nome"
+                class="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200/50">
+            <input type="email" name="email" required placeholder="Email"
+                class="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200/50">
+            <input type="password" name="senha" required placeholder="Senha"
+                class="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200/50">
+            <select name="role" class="px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
+                <option value="consultor" class="bg-slate-800">Consultor</option>
+                <option value="admin" class="bg-slate-800">Admin</option>
+            </select>
+            <button type="submit" class="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700">Criar</button>
+        </form>
+    </div>
+
+    <!-- Lista de Usuários -->
+    <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+        <h2 class="text-xl font-bold text-white mb-4">📋 Usuários Cadastrados</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-white/10">
+                        <th class="py-3 text-blue-200 text-sm">Nome</th>
+                        <th class="py-3 text-blue-200 text-sm">Email</th>
+                        <th class="py-3 text-blue-200 text-sm">Role</th>
+                        <th class="py-3 text-blue-200 text-sm">Filiais</th>
+                        <th class="py-3 text-blue-200 text-sm">Status</th>
+                        <th class="py-3 text-blue-200 text-sm">Ações</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in usuarios %}
+                    <tr class="border-b border-white/5">
+                        <td class="py-3 text-white">{{ u.nome }}</td>
+                        <td class="py-3 text-blue-200">{{ u.email }}</td>
+                        <td class="py-3"><span
+                                class="px-2 py-1 text-xs rounded {{ 'bg-purple-500/20 text-purple-300' if u.role == 'admin' else 'bg-blue-500/20 text-blue-300' }}">{{
+                                u.role }}</span></td>
+                        <td class="py-3 text-blue-200/70 text-sm">{{ u.filiais|map(attribute='nome')|join(', ') or '-'
+                            }}</td>
+                        <td class="py-3"><span
+                                class="px-2 py-1 text-xs rounded {{ 'bg-green-500/20 text-green-300' if u.ativo else 'bg-red-500/20 text-red-300' }}">{{
+                                'Ativo' if u.ativo else 'Inativo' }}</span></td>
+                        <td class="py-3">
+                            <form action="{{ url_for('admin.excluir_usuario', id=u.id) }}" method="POST" class="inline"
+                                onsubmit="return confirm('Desativar este usuário?')">
+                                <button type="submit" class="text-red-400 hover:text-red-300 text-sm">Desativar</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+{% endblock %}

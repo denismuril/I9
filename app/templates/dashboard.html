@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Sistema I9{% endblock %}
+
+{% block content %}
+<!-- Header -->
+<header class="glass-effect bg-white/5 border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <div
+                class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+            </div>
+            <span class="text-xl font-bold text-white">Sistema I9</span>
+            {% if is_admin %}
+            <span class="px-2 py-1 bg-purple-500/20 text-purple-300 text-xs rounded-full">Admin</span>
+            {% endif %}
+        </div>
+        <div class="flex items-center gap-4">
+            {% if is_admin %}
+            <a href="{{ url_for('admin.listar_usuarios') }}" class="text-blue-200 hover:text-white text-sm">👥
+                Usuários</a>
+            <a href="{{ url_for('admin.listar_filiais') }}" class="text-blue-200 hover:text-white text-sm">🏢
+                Filiais</a>
+            <a href="{{ url_for('admin.listar_auditoria') }}" class="text-blue-200 hover:text-white text-sm">📋
+                Auditoria</a>
+            {% endif %}
+            <span class="text-blue-200 text-sm">Olá, <strong>{{ usuario.nome }}</strong></span>
+            <a href="{{ url_for('auth.logout') }}"
+                class="px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition text-sm">Sair</a>
+        </div>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <!-- Conexão com Filial -->
+    <div class="glass-effect bg-white/10 rounded-2xl p-6 mb-8 border border-white/20">
+        <h2 class="text-2xl font-bold text-white mb-6 text-center">🔐 Conexão com DETRAN</h2>
+
+        <div id="statusConexao" class="mb-6">
+            {% if filial_conectada %}
+            <div class="bg-green-500/20 border border-green-500/30 rounded-xl p-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-3 h-3 bg-green-500 rounded-full pulse-glow"></div>
+                    <div>
+                        <p class="text-green-300 font-semibold">✅ Conexão com DETRAN Estabelecida</p>
+                        <p class="text-green-200/70 text-sm">{{ filial_conectada.nome }} ({{ filial_conectada.uf }}) -
+                            {{ filial_conectada.conectado_em }}</p>
+                    </div>
+                </div>
+                <button onclick="desconectarFilial()"
+                    class="px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition text-sm">Desconectar</button>
+            </div>
+            {% else %}
+            <div class="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4">
+                <p class="text-yellow-200 text-sm text-center"><strong>⚠️ Não conectado.</strong> Selecione uma filial
+                    para acessar o DETRAN.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {% if not filial_conectada %}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+            <div class="md:col-span-2">
+                <label class="block text-blue-200 text-sm mb-2">Selecione a Filial</label>
+                <select id="filialSelect"
+                    class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-blue-400">
+                    <option value="" class="bg-slate-800">-- Selecione --</option>
+                    {% for filial in filiais %}
+                    <option value="{{ filial.id }}" class="bg-slate-800">{{ filial.nome }} ({{ filial.uf }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <button onclick="conectarFilial()"
+                    class="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-2">
+                    🔒 Conectar ao DETRAN
+                </button>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Formulário de Consulta -->
+    <div id="formContainer"
+        class="glass-effect bg-white/10 rounded-2xl p-6 mb-8 border border-white/20 {{ '' if filial_conectada else 'opacity-50 pointer-events-none' }}">
+        <h2 class="text-2xl font-bold text-white mb-6 text-center">Consulta de Restrições DETRAN</h2>
+
+        {% if not filial_conectada %}
+        <div class="bg-gray-500/20 border border-gray-500/30 rounded-xl p-4 mb-6">
+            <p class="text-gray-300 text-sm text-center">🔒 <strong>Campos bloqueados.</strong> Conecte-se a uma filial.
+            </p>
+        </div>
+        {% endif %}
+
+        <form id="formConsulta" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div>
+                    <label class="block text-blue-200 text-sm mb-2">UF *</label>
+                    <select id="uf" required {{ '' if filial_conectada else 'disabled' }}
+                        class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-blue-400">
+                        <option value="" class="bg-slate-800">Selecione...</option>
+                        {% for estado in
+                        ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
+                        %}
+                        <option value="{{ estado }}" class="bg-slate-800">{{ estado }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-blue-200 text-sm mb-2">Placa *</label>
+                    <input type="text" id="placa" required placeholder="ABC1234" maxlength="7" {{ '' if filial_conectada
+                        else 'disabled' }}
+                        class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400 uppercase">
+                </div>
+                <div>
+                    <label class="block text-blue-200 text-sm mb-2">RENAVAM</label>
+                    <input type="text" id="renavam" placeholder="00000000000" maxlength="11" {{ '' if filial_conectada
+                        else 'disabled' }}
+                        class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
+                </div>
+                <div>
+                    <label class="block text-blue-200 text-sm mb-2">Chassi</label>
+                    <input type="text" id="chassi" placeholder="9BWZZZ377VT004251" maxlength="17" {{ '' if
+                        filial_conectada else 'disabled' }}
+                        class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400 uppercase">
+                </div>
+            </div>
+
+            <div class="flex justify-center">
+                <button type="submit" {{ '' if filial_conectada else 'disabled' }}
+                    class="px-12 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50">
+                    🔍 Consultar Restrições
+                </button>
+            </div>
+        </form>
+        <p class="text-blue-200/60 text-sm mt-4 text-center">Placas de teste: ABC1234, XYZ9876, DEF5678</p>
+    </div>
+
+    <!-- Loading -->
+    <div id="loading" class="hidden justify-center mb-8">
+        <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+    </div>
+
+    <!-- Erro -->
+    <div id="erro" class="hidden glass-effect bg-red-500/20 border border-red-500/30 rounded-2xl p-6 mb-8">
+        <p class="text-red-200 text-center" id="erroMsg"></p>
+    </div>
+
+    <!-- Resultado -->
+    <div id="resultado" class="hidden space-y-6">
+        <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+            <h3 class="text-xl font-bold text-white mb-4">🚗 Dados do Veículo</h3>
+            <div id="dadosVeiculo" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+        </div>
+        <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+            <h3 class="text-xl font-bold text-white mb-4">💰 IPVA</h3>
+            <div id="dadosIPVA" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+        </div>
+        <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+            <h3 class="text-xl font-bold text-white mb-4">🚨 Multas</h3>
+            <div id="dadosMultas"></div>
+        </div>
+        <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+            <h3 class="text-xl font-bold text-white mb-4">⚠️ Restrições</h3>
+            <div id="dadosRestricoes"></div>
+        </div>
+        <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+            <h3 class="text-xl font-bold text-white mb-4">🔨 Histórico de Leilão</h3>
+            <div id="dadosLeilao"></div>
+        </div>
+        <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+            <h3 class="text-xl font-bold text-white mb-4">👤 Histórico de Proprietários</h3>
+            <div id="dadosProprietarios"></div>
+        </div>
+    </div>
+
+    <!-- Histórico -->
+    <div class="mt-8">
+        <button onclick="carregarHistorico()" class="text-blue-300 hover:text-blue-200 text-sm underline">Ver histórico
+            de consultas</button>
+        <div id="historico" class="hidden mt-4 glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+            <h3 class="text-lg font-bold text-white mb-4">Últimas Consultas</h3>
+            <div id="listaHistorico" class="space-y-2"></div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    async function conectarFilial() {
+        const filialId = document.getElementById('filialSelect').value;
+        if (!filialId) { alert('Selecione uma filial.'); return; }
+        const formData = new FormData();
+        formData.append('filial_id', filialId);
+        try {
+            const resp = await fetch('/api/conectar_filial', { method: 'POST', body: formData });
+            const data = await resp.json();
+            if (data.sucesso) { location.reload(); } else { alert('Erro: ' + data.erro); }
+        } catch (err) { alert('Erro: ' + err.message); }
+    }
+
+    async function desconectarFilial() {
+        if (!confirm('Desconectar?')) return;
+        try {
+            const resp = await fetch('/api/desconectar_filial', { method: 'POST' });
+            const data = await resp.json();
+            if (data.sucesso) { location.reload(); }
+        } catch (err) { alert('Erro: ' + err.message); }
+    }
+
+    document.getElementById('formConsulta').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const placa = document.getElementById('placa').value;
+        document.getElementById('loading').classList.remove('hidden');
+        document.getElementById('loading').classList.add('flex');
+        document.getElementById('resultado').classList.add('hidden');
+        document.getElementById('erro').classList.add('hidden');
+        const formData = new FormData();
+        formData.append('placa_chassi', placa);
+        formData.append('tipo_busca', 'placa');
+        try {
+            const resp = await fetch('/api/consultar', { method: 'POST', body: formData });
+            const data = await resp.json();
+            document.getElementById('loading').classList.add('hidden');
+            if (!data.sucesso) {
+                document.getElementById('erroMsg').textContent = data.erro;
+                document.getElementById('erro').classList.remove('hidden');
+                return;
+            }
+            exibirResultado(data.dados);
+        } catch (err) {
+            document.getElementById('loading').classList.add('hidden');
+            document.getElementById('erroMsg').textContent = 'Erro de conexão';
+            document.getElementById('erro').classList.remove('hidden');
+        }
+    });
+
+    function exibirResultado(dados) {
+        document.getElementById('resultado').classList.remove('hidden');
+        const v = dados.dados_veiculo;
+        document.getElementById('dadosVeiculo').innerHTML = `
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Placa</p><p class="text-white font-bold">${v.placa}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Modelo</p><p class="text-white font-bold">${v.modelo}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Ano</p><p class="text-white font-bold">${v.ano_fabricacao}/${v.ano_modelo}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Cor</p><p class="text-white font-bold">${v.cor}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Chassi</p><p class="text-white font-bold text-sm">${v.chassi}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Renavam</p><p class="text-white font-bold">${v.renavam}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Combustível</p><p class="text-white font-bold">${v.combustivel}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">UF</p><p class="text-white font-bold">${v.uf}</p></div>
+    `;
+        const ipva = dados.ipva;
+        const ipvaColor = ipva.situacao === 'PAGO' ? 'text-green-400' : ipva.situacao === 'PENDENTE' ? 'text-yellow-400' : 'text-red-400';
+        document.getElementById('dadosIPVA').innerHTML = `
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Situação</p><p class="${ipvaColor} font-bold">${ipva.situacao}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Valor</p><p class="text-white font-bold">R$ ${ipva.valor.toFixed(2)}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Ano Ref.</p><p class="text-white font-bold">${ipva.ano_referencia}</p></div>
+        <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Vencimento</p><p class="text-white font-bold">${ipva.vencimento}</p></div>
+    `;
+        const multas = dados.multas;
+        if (multas.possui_multas) {
+            let html = `<p class="text-red-400 font-bold mb-3">${multas.quantidade} multa(s) - Total: R$ ${multas.valor_total.toFixed(2)}</p><div class="space-y-2">`;
+            multas.detalhes.forEach(m => { html += `<div class="bg-white/5 p-3 rounded-lg"><p class="text-white text-sm">${m.data} - ${m.descricao}</p><p class="text-blue-200/60 text-xs">${m.local} | R$ ${m.valor.toFixed(2)}</p></div>`; });
+            document.getElementById('dadosMultas').innerHTML = html + '</div>';
+        } else { document.getElementById('dadosMultas').innerHTML = '<p class="text-green-400 font-bold">✓ Nenhuma multa</p>'; }
+        const rest = dados.restricoes;
+        if (rest.possui_restricoes) {
+            let html = '<div class="space-y-2">';
+            rest.detalhes.forEach(r => { html += `<div class="bg-red-500/20 p-3 rounded-lg border border-red-500/30"><p class="text-red-300 font-bold">${r.tipo}</p><p class="text-red-200/80 text-sm">${r.instituicao || r.boletim_ocorrencia || ''} - ${r.data_inclusao}</p></div>`; });
+            document.getElementById('dadosRestricoes').innerHTML = html + '</div>';
+        } else { document.getElementById('dadosRestricoes').innerHTML = '<p class="text-green-400 font-bold">✓ Sem restrições</p>'; }
+        const leilao = dados.leilao;
+        if (leilao.possui_historico_leilao) {
+            const l = leilao.detalhes;
+            document.getElementById('dadosLeilao').innerHTML = `<div class="bg-yellow-500/20 p-4 rounded-lg border border-yellow-500/30"><p class="text-yellow-300 font-bold">⚠️ HISTÓRICO DE LEILÃO</p><p class="text-yellow-200/80 text-sm mt-2">Leiloeiro: ${l.leiloeiro}<br>Data: ${l.data_leilao}<br>Motivo: ${l.motivo}</p></div>`;
+        } else { document.getElementById('dadosLeilao').innerHTML = '<p class="text-green-400 font-bold">✓ Sem histórico de leilão</p>'; }
+        const props = dados.proprietarios;
+        let html = `<p class="text-blue-200 mb-3">${props.quantidade} proprietário(s)</p><div class="space-y-2">`;
+        props.historico.forEach((p, i) => { html += `<div class="bg-white/5 p-3 rounded-lg flex justify-between"><span class="text-white">${i + 1}. ${p.tipo}</span><span class="text-blue-200/60 text-sm">${p.uf} | ${p.periodo}</span></div>`; });
+        document.getElementById('dadosProprietarios').innerHTML = html + '</div>';
+    }
+
+    async function carregarHistorico() {
+        const div = document.getElementById('historico');
+        div.classList.toggle('hidden');
+        if (!div.classList.contains('hidden')) {
+            const resp = await fetch('/api/historico');
+            const data = await resp.json();
+            if (data.sucesso) {
+                let html = '';
+                data.consultas.forEach(c => {
+                    html += `<div class="bg-white/5 p-3 rounded-lg flex justify-between items-center"><div><p class="text-white font-bold">${c.placa_chassi}</p><p class="text-blue-200/60 text-xs">${c.filial}</p></div><span class="text-blue-200/60 text-xs">${c.data_consulta}</span></div>`;
+                });
+                document.getElementById('listaHistorico').innerHTML = html || '<p class="text-blue-200/60">Nenhuma consulta</p>';
+            }
+        }
+    }
+</script>
+{% endblock %}

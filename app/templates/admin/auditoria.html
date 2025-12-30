@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Auditoria - Sistema I9{% endblock %}
+
+{% block content %}
+<header class="glass-effect bg-white/5 border-b border-white/10">
+    <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+        <div class="flex items-center gap-3">
+            <a href="{{ url_for('main.dashboard') }}" class="text-blue-200 hover:text-white">← Dashboard</a>
+            <span class="text-white font-bold">📋 Log de Auditoria</span>
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="px-4 py-2 bg-red-500/20 text-red-300 rounded-lg text-sm">Sair</a>
+    </div>
+</header>
+
+<main class="max-w-7xl mx-auto px-4 py-8">
+    <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-xl font-bold text-white">Últimas Consultas</h2>
+            <a href="{{ url_for('admin.auditoria_json') }}" target="_blank"
+                class="text-blue-300 text-sm hover:underline">📥 Exportar JSON</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-left">
+                <thead>
+                    <tr class="border-b border-white/10">
+                        <th class="py-3 text-blue-200 text-sm">Data/Hora</th>
+                        <th class="py-3 text-blue-200 text-sm">Usuário</th>
+                        <th class="py-3 text-blue-200 text-sm">Filial</th>
+                        <th class="py-3 text-blue-200 text-sm">Placa/Chassi</th>
+                        <th class="py-3 text-blue-200 text-sm">Tipo</th>
+                        <th class="py-3 text-blue-200 text-sm">Status</th>
+                        <th class="py-3 text-blue-200 text-sm">IP</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for a in auditorias.items %}
+                    <tr class="border-b border-white/5">
+                        <td class="py-3 text-white text-sm">{{ a.data_consulta.strftime('%d/%m/%Y %H:%M') }}</td>
+                        <td class="py-3 text-blue-200">{{ a.usuario.nome if a.usuario else 'N/A' }}</td>
+                        <td class="py-3 text-blue-200/70">{{ a.filial.nome if a.filial else 'N/A' }}</td>
+                        <td class="py-3 text-white font-mono">{{ a.placa_chassi }}</td>
+                        <td class="py-3 text-blue-200/70">{{ a.tipo_busca }}</td>
+                        <td class="py-3"><span
+                                class="px-2 py-1 text-xs rounded {{ 'bg-green-500/20 text-green-300' if a.status == 'sucesso' else 'bg-red-500/20 text-red-300' }}">{{
+                                a.status }}</span></td>
+                        <td class="py-3 text-blue-200/50 text-xs">{{ a.ip_origem or '-' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginação -->
+        <div class="flex justify-center gap-2 mt-6">
+            {% if auditorias.has_prev %}
+            <a href="{{ url_for('admin.listar_auditoria', page=auditorias.prev_num) }}"
+                class="px-3 py-1 bg-white/10 text-white rounded hover:bg-white/20">←</a>
+            {% endif %}
+            <span class="px-3 py-1 text-blue-200">Página {{ auditorias.page }} de {{ auditorias.pages }}</span>
+            {% if auditorias.has_next %}
+            <a href="{{ url_for('admin.listar_auditoria', page=auditorias.next_num) }}"
+                class="px-3 py-1 bg-white/10 text-white rounded hover:bg-white/20">→</a>
+            {% endif %}
+        </div>
+    </div>
+</main>
+{% endblock %}

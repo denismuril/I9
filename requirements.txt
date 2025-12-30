@@ -1,7 +1,18 @@
-# Sistema I9 - Dependências
+# Sistema I9 - Dependências Enterprise
 # Instale com: pip install -r requirements.txt
 
+# Framework
 Flask==3.0.0
 Werkzeug==3.0.1
-requests==2.31.0
+
+# Database
+Flask-SQLAlchemy==3.1.1
+Flask-Migrate==4.0.5
+psycopg2-binary==2.9.9
+
+# Authentication
+Flask-Login==0.6.3
+
+# Utilities
 python-dotenv==1.0.0
+requests==2.31.0
