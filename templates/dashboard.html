@@ -27,6 +27,14 @@
         .loading.active {
             display: flex;
         }
+
+        .campos-extras {
+            display: none;
+        }
+
+        .campos-extras.active {
+            display: block;
+        }
     </style>
 </head>
 
@@ -53,29 +61,141 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-8">
-        <!-- Busca -->
+        <!-- Formulário de Consulta -->
         <div class="glass-effect bg-white/10 rounded-2xl p-6 mb-8 border border-white/20">
-            <h2 class="text-2xl font-bold text-white mb-6 text-center">Consulta de Veículo</h2>
-            <form id="formConsulta" class="space-y-4">
-                <div class="flex flex-col md:flex-row gap-4">
-                    <select id="tipoBusca"
-                        class="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-blue-400">
-                        <option value="placa" class="bg-slate-800">Placa</option>
-                        <option value="chassi" class="bg-slate-800">Chassi</option>
-                    </select>
-                    <input type="text" id="placaChassi" placeholder="Digite a placa (ABC-1234) ou chassi"
-                        class="flex-1 px-6 py-4 bg-white/10 border border-white/20 rounded-xl text-white text-lg placeholder-blue-200/50 focus:outline-none focus:border-blue-400 uppercase">
+            <h2 class="text-2xl font-bold text-white mb-6 text-center">Consulta de Restrições DETRAN</h2>
+
+            <!-- Aviso sobre requisitos por estado -->
+            <div class="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 mb-6">
+                <p class="text-yellow-200 text-sm">
+                    <strong>⚠️ Atenção:</strong> Os campos obrigatórios variam conforme o estado.
+                    Selecione a UF para ver os campos necessários.
+                </p>
+            </div>
+
+            <form id="formConsulta" class="space-y-6">
+                <!-- Linha 1: UF e Placa -->
+                <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    <div>
+                        <label class="block text-blue-200 text-sm mb-2">UF *</label>
+                        <select id="uf" required onchange="atualizarCampos()"
+                            class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-blue-400">
+                            <option value="" class="bg-slate-800">Selecione...</option>
+                            <option value="AC" class="bg-slate-800">AC - Acre</option>
+                            <option value="AL" class="bg-slate-800">AL - Alagoas</option>
+                            <option value="AM" class="bg-slate-800">AM - Amazonas</option>
+                            <option value="AP" class="bg-slate-800">AP - Amapá</option>
+                            <option value="BA" class="bg-slate-800">BA - Bahia</option>
+                            <option value="CE" class="bg-slate-800">CE - Ceará</option>
+                            <option value="DF" class="bg-slate-800">DF - Distrito Federal</option>
+                            <option value="ES" class="bg-slate-800">ES - Espírito Santo</option>
+                            <option value="GO" class="bg-slate-800">GO - Goiás</option>
+                            <option value="MA" class="bg-slate-800">MA - Maranhão</option>
+                            <option value="MG" class="bg-slate-800">MG - Minas Gerais</option>
+                            <option value="MS" class="bg-slate-800">MS - Mato Grosso do Sul</option>
+                            <option value="MT" class="bg-slate-800">MT - Mato Grosso</option>
+                            <option value="PA" class="bg-slate-800">PA - Pará</option>
+                            <option value="PB" class="bg-slate-800">PB - Paraíba</option>
+                            <option value="PE" class="bg-slate-800">PE - Pernambuco</option>
+                            <option value="PI" class="bg-slate-800">PI - Piauí</option>
+                            <option value="PR" class="bg-slate-800">PR - Paraná</option>
+                            <option value="RJ" class="bg-slate-800">RJ - Rio de Janeiro</option>
+                            <option value="RN" class="bg-slate-800">RN - Rio Grande do Norte</option>
+                            <option value="RO" class="bg-slate-800">RO - Rondônia</option>
+                            <option value="RR" class="bg-slate-800">RR - Roraima</option>
+                            <option value="RS" class="bg-slate-800">RS - Rio Grande do Sul</option>
+                            <option value="SC" class="bg-slate-800">SC - Santa Catarina</option>
+                            <option value="SE" class="bg-slate-800">SE - Sergipe</option>
+                            <option value="SP" class="bg-slate-800">SP - São Paulo</option>
+                            <option value="TO" class="bg-slate-800">TO - Tocantins</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-blue-200 text-sm mb-2">Placa *</label>
+                        <input type="text" id="placa" required placeholder="ABC1234 ou ABC1D23" maxlength="7"
+                            class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400 uppercase">
+                    </div>
+                    <div>
+                        <label class="block text-blue-200 text-sm mb-2">RENAVAM *</label>
+                        <input type="text" id="renavam" required placeholder="00000000000" maxlength="11"
+                            class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
+                    </div>
+                    <div>
+                        <label class="block text-blue-200 text-sm mb-2">Chassi *</label>
+                        <input type="text" id="chassi" required placeholder="9BWZZZ377VT004251" maxlength="17"
+                            class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400 uppercase">
+                    </div>
+                </div>
+
+                <!-- Campos extras TO (CPF/CNPJ) -->
+                <div id="camposTocantins" class="campos-extras">
+                    <div class="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 mb-4">
+                        <p class="text-blue-200 text-sm">🔹 <strong>Tocantins (TO):</strong> É necessário informar o
+                            CPF/CNPJ do proprietário.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-blue-200 text-sm mb-2">CPF/CNPJ do Proprietário *</label>
+                            <input type="text" id="cpfCnpj" placeholder="000.000.000-00 ou 00.000.000/0000-00"
+                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campos extras MG, RS, SC (Login gov.br) -->
+                <div id="camposGovBr" class="campos-extras">
+                    <div class="bg-green-500/20 border border-green-500/30 rounded-xl p-4 mb-4">
+                        <p class="text-green-200 text-sm">🔹 <strong>MG, RS, SC:</strong> É necessário login no
+                            <strong>gov.br</strong> para consulta.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-blue-200 text-sm mb-2">Login gov.br (CPF) *</label>
+                            <input type="text" id="loginGovBr" placeholder="000.000.000-00"
+                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-blue-200 text-sm mb-2">Senha gov.br *</label>
+                            <input type="password" id="senhaGovBr" placeholder="Sua senha do gov.br"
+                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Campos extras SP (Login DETRAN-SP) -->
+                <div id="camposDetranSP" class="campos-extras">
+                    <div class="bg-purple-500/20 border border-purple-500/30 rounded-xl p-4 mb-4">
+                        <p class="text-purple-200 text-sm">🔹 <strong>São Paulo (SP):</strong> É necessário login no
+                            <strong>DETRAN-SP</strong> para consulta.</p>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-blue-200 text-sm mb-2">Login DETRAN-SP (CPF) *</label>
+                            <input type="text" id="loginDetranSP" placeholder="000.000.000-00"
+                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
+                        </div>
+                        <div>
+                            <label class="block text-blue-200 text-sm mb-2">Senha DETRAN-SP *</label>
+                            <input type="password" id="senhaDetranSP" placeholder="Sua senha do DETRAN-SP"
+                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botão Consultar -->
+                <div class="flex justify-center">
                     <button type="submit"
-                        class="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2">
+                        class="px-12 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
-                        Consultar
+                        Consultar Restrições
                     </button>
                 </div>
             </form>
-            <p class="text-blue-200/60 text-sm mt-3 text-center">Placas de teste: ABC1234, XYZ9876, DEF5678</p>
+            <p class="text-blue-200/60 text-sm mt-4 text-center">Placas de teste (simulado): ABC1234, XYZ9876, DEF5678
+            </p>
         </div>
 
         <!-- Loading -->
@@ -90,43 +210,26 @@
 
         <!-- Resultado -->
         <div id="resultado" class="hidden space-y-6">
-            <!-- Dados do Veículo -->
             <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
-                <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    Dados do Veículo
-                </h3>
+                <h3 class="text-xl font-bold text-white mb-4">🚗 Dados do Veículo</h3>
                 <div id="dadosVeiculo" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
             </div>
-
-            <!-- IPVA -->
             <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
                 <h3 class="text-xl font-bold text-white mb-4">💰 IPVA</h3>
                 <div id="dadosIPVA" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
             </div>
-
-            <!-- Multas -->
             <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
                 <h3 class="text-xl font-bold text-white mb-4">🚨 Multas</h3>
                 <div id="dadosMultas"></div>
             </div>
-
-            <!-- Restrições -->
             <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
                 <h3 class="text-xl font-bold text-white mb-4">⚠️ Restrições</h3>
                 <div id="dadosRestricoes"></div>
             </div>
-
-            <!-- Leilão -->
             <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
                 <h3 class="text-xl font-bold text-white mb-4">🔨 Histórico de Leilão</h3>
                 <div id="dadosLeilao"></div>
             </div>
-
-            <!-- Proprietários -->
             <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
                 <h3 class="text-xl font-bold text-white mb-4">👤 Histórico de Proprietários</h3>
                 <div id="dadosProprietarios"></div>
@@ -135,7 +238,7 @@
 
         <!-- Histórico -->
         <div class="mt-8">
-            <button onclick="carregarHistorico()" class="text-blue-300 hover:text-blue-200 text-sm underline">Ver meu
+            <button onclick="carregarHistorico()" class="text-blue-300 hover:text-blue-200 text-sm underline">Ver
                 histórico de consultas</button>
             <div id="historico" class="hidden mt-4 glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
                 <h3 class="text-lg font-bold text-white mb-4">Últimas Consultas</h3>
@@ -145,18 +248,67 @@
     </main>
 
     <script>
+        // Controle de campos condicionais por UF
+        function atualizarCampos() {
+            const uf = document.getElementById('uf').value;
+
+            // Oculta todos os campos extras
+            document.getElementById('camposTocantins').classList.remove('active');
+            document.getElementById('camposGovBr').classList.remove('active');
+            document.getElementById('camposDetranSP').classList.remove('active');
+
+            // Remove required de todos os campos extras
+            document.getElementById('cpfCnpj').required = false;
+            document.getElementById('loginGovBr').required = false;
+            document.getElementById('senhaGovBr').required = false;
+            document.getElementById('loginDetranSP').required = false;
+            document.getElementById('senhaDetranSP').required = false;
+
+            // Mostra campos específicos por UF
+            if (uf === 'TO') {
+                document.getElementById('camposTocantins').classList.add('active');
+                document.getElementById('cpfCnpj').required = true;
+            } else if (['MG', 'RS', 'SC'].includes(uf)) {
+                document.getElementById('camposGovBr').classList.add('active');
+                document.getElementById('loginGovBr').required = true;
+                document.getElementById('senhaGovBr').required = true;
+            } else if (uf === 'SP') {
+                document.getElementById('camposDetranSP').classList.add('active');
+                document.getElementById('loginDetranSP').required = true;
+                document.getElementById('senhaDetranSP').required = true;
+            }
+        }
+
+        // Formulário de consulta
         document.getElementById('formConsulta').addEventListener('submit', async (e) => {
             e.preventDefault();
-            const placa = document.getElementById('placaChassi').value;
-            const tipo = document.getElementById('tipoBusca').value;
+
+            const uf = document.getElementById('uf').value;
+            const placa = document.getElementById('placa').value;
+            const renavam = document.getElementById('renavam').value;
+            const chassi = document.getElementById('chassi').value;
 
             document.getElementById('loading').classList.add('active');
             document.getElementById('resultado').classList.add('hidden');
             document.getElementById('erro').classList.add('hidden');
 
             const formData = new FormData();
+            formData.append('uf', uf);
             formData.append('placa_chassi', placa);
-            formData.append('tipo_busca', tipo);
+            formData.append('renavam', renavam);
+            formData.append('chassi', chassi);
+            formData.append('tipo_busca', 'placa');
+
+            // Campos extras por UF
+            if (uf === 'TO') {
+                formData.append('cpf_cnpj', document.getElementById('cpfCnpj').value);
+            } else if (['MG', 'RS', 'SC'].includes(uf)) {
+                formData.append('login_govbr', document.getElementById('loginGovBr').value);
+                formData.append('senha_govbr', document.getElementById('senhaGovBr').value);
+            } else if (uf === 'SP') {
+                formData.append('login_detran_sp', document.getElementById('loginDetranSP').value);
+                formData.append('senha_detran_sp', document.getElementById('senhaDetranSP').value);
+            }
 
             try {
                 const resp = await fetch('/consultar', { method: 'POST', body: formData });
@@ -168,7 +320,6 @@
                     document.getElementById('erro').classList.remove('hidden');
                     return;
                 }
-
                 exibirResultado(data.dados);
             } catch (err) {
                 document.getElementById('loading').classList.remove('active');

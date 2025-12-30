@@ -76,7 +76,7 @@ def init_db():
 # ==============================================================================
 
 # Sua API Key da Infosimples (obtenha em https://infosimples.com)
-INFOSIMPLES_API_KEY = "SUA_API_KEY_AQUI"
+INFOSIMPLES_API_KEY = "_IMLYfOwRzmPbMATaNvO984h-fej5E023JKIyyrO"
 
 # URLs das APIs da Infosimples
 API_URLS = {
@@ -128,17 +128,31 @@ API_URLS = {
 # ==============================================================================
 # FUNÇÃO DE INTEGRAÇÃO REAL COM API INFOSIMPLES (DESCOMENTE PARA USAR)
 # ==============================================================================
-
+#
+# REQUISITOS POR ESTADO:
+# ----------------------
+# TODOS OS ESTADOS: uf, placa, renavam, chassi (obrigatórios)
+# TO (Tocantins): + cpf_cnpj (CPF/CNPJ do proprietário)
+# MG, RS, SC: + login_govbr, senha_govbr (credenciais gov.br)
+# SP (São Paulo): + login_detran_sp, senha_detran_sp (credenciais DETRAN-SP)
+#
 # import requests
 #
-# def consultar_veiculo_api_real(placa, uf='SP', renavam=None):
+# def consultar_veiculo_api_real(uf, placa, renavam, chassi, **kwargs):
 #     """
 #     Consulta real à API da Infosimples - DETRAN Restrições
 #     
 #     Args:
-#         placa: Placa do veículo (formato: ABC1234 ou ABC1D23)
 #         uf: Estado do veículo (sigla, ex: SP, RJ, MG)
-#         renavam: Número do RENAVAM (opcional, alguns estados exigem)
+#         placa: Placa do veículo (formato: ABC1234 ou ABC1D23)
+#         renavam: Número do RENAVAM
+#         chassi: Número do chassi (17 caracteres)
+#         **kwargs: Campos adicionais por estado:
+#             - cpf_cnpj: CPF/CNPJ do proprietário (TO)
+#             - login_govbr: Login gov.br (MG, RS, SC)
+#             - senha_govbr: Senha gov.br (MG, RS, SC)
+#             - login_detran_sp: Login DETRAN-SP (SP)
+#             - senha_detran_sp: Senha DETRAN-SP (SP)
 #     
 #     Returns:
 #         dict: Dados retornados pela API
@@ -147,16 +161,35 @@ API_URLS = {
 #     if INFOSIMPLES_API_KEY == "SUA_API_KEY_AQUI":
 #         raise ValueError("Configure sua API Key da Infosimples!")
 #     
+#     # Payload base (obrigatório para todos os estados)
 #     payload = {
 #         'token': INFOSIMPLES_API_KEY,
-#         'placa': placa.upper().replace('-', ''),
 #         'uf': uf.upper(),
-#         'timeout': 300  # Timeout em segundos (máximo 600)
+#         'placa': placa.upper().replace('-', ''),
+#         'renavam': renavam,
+#         'chassi': chassi.upper(),
+#         'timeout': 300
 #     }
 #     
-#     # Alguns estados exigem RENAVAM
-#     if renavam:
-#         payload['renavam'] = renavam
+#     # Campos específicos por estado
+#     if uf.upper() == 'TO':
+#         # Tocantins: CPF/CNPJ do proprietário
+#         if 'cpf_cnpj' in kwargs:
+#             payload['cpf'] = kwargs['cpf_cnpj']
+#     
+#     elif uf.upper() in ['MG', 'RS', 'SC']:
+#         # MG, RS, SC: Credenciais gov.br
+#         if 'login_govbr' in kwargs:
+#             payload['govbr_user'] = kwargs['login_govbr']
+#         if 'senha_govbr' in kwargs:
+#             payload['govbr_password'] = kwargs['senha_govbr']
+#     
+#     elif uf.upper() == 'SP':
+#         # São Paulo: Credenciais DETRAN-SP
+#         if 'login_detran_sp' in kwargs:
+#             payload['detran_user'] = kwargs['login_detran_sp']
+#         if 'senha_detran_sp' in kwargs:
+#             payload['detran_password'] = kwargs['senha_detran_sp']
 #     
 #     try:
 #         response = requests.post(
@@ -168,7 +201,6 @@ API_URLS = {
 #         
 #         dados = response.json()
 #         
-#         # Verifica se a consulta foi bem-sucedida
 #         if dados.get('code') == 200:
 #             return {
 #                 'encontrado': True,
@@ -183,15 +215,15 @@ API_URLS = {
 #             }
 #             
 #     except requests.Timeout:
-#         return {'encontrado': False, 'erro': 'Timeout na consulta. Tente novamente.'}
+#         return {'encontrado': False, 'erro': 'Timeout. Tente novamente.'}
 #     except requests.RequestException as e:
-#         return {'encontrado': False, 'erro': f'Erro na requisição: {str(e)}'}
+#         return {'encontrado': False, 'erro': f'Erro: {str(e)}'}
 
 # ==============================================================================
 # FUNÇÃO DE INTEGRAÇÃO COM API (SIMULADA PARA TESTES)
 # ==============================================================================
 
-def consultar_veiculo_api(placa_chassi, tipo_busca):
+def consultar_veiculo_api(placa_chassi, tipo_busca, **kwargs):
     """
     Simula a consulta à API da Infosimples para obter dados do veículo.
     
