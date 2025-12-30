@@ -182,7 +182,21 @@
         <button onclick="carregarHistorico()" class="text-blue-300 hover:text-blue-200 text-sm underline">Ver histórico
             de consultas</button>
         <div id="historico" class="hidden mt-4 glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
-            <h3 class="text-lg font-bold text-white mb-4">Últimas Consultas</h3>
+            <h3 class="text-lg font-bold text-white mb-4">🔍 Buscar Consultas</h3>
+            <!-- Busca -->
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+                <input type="text" id="buscaPlaca" placeholder="Placa"
+                    class="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200/50 text-sm uppercase">
+                <input type="text" id="buscaChassi" placeholder="Chassi"
+                    class="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200/50 text-sm uppercase">
+                <input type="text" id="buscaRenavam" placeholder="Renavam"
+                    class="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white placeholder-blue-200/50 text-sm">
+                <input type="date" id="buscaData"
+                    class="px-3 py-2 bg-white/10 border border-white/20 rounded-lg text-white text-sm">
+                <button onclick="buscarHistorico()"
+                    class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm">🔍 Buscar</button>
+            </div>
+            <h4 class="text-md font-bold text-white mb-3">Últimas Consultas</h4>
             <div id="listaHistorico" class="space-y-2"></div>
         </div>
     </div>
@@ -287,15 +301,47 @@
         const div = document.getElementById('historico');
         div.classList.toggle('hidden');
         if (!div.classList.contains('hidden')) {
-            const resp = await fetch('/api/historico');
-            const data = await resp.json();
-            if (data.sucesso) {
-                let html = '';
-                data.consultas.forEach(c => {
-                    html += `<div class="bg-white/5 p-3 rounded-lg flex justify-between items-center"><div><p class="text-white font-bold">${c.placa_chassi}</p><p class="text-blue-200/60 text-xs">${c.filial}</p></div><span class="text-blue-200/60 text-xs">${c.data_consulta}</span></div>`;
-                });
-                document.getElementById('listaHistorico').innerHTML = html || '<p class="text-blue-200/60">Nenhuma consulta</p>';
+            buscarHistorico();
+        }
+    }
+
+    async function buscarHistorico() {
+        const placa = document.getElementById('buscaPlaca').value.trim();
+        const chassi = document.getElementById('buscaChassi').value.trim();
+        const renavam = document.getElementById('buscaRenavam').value.trim();
+        const data = document.getElementById('buscaData').value;
+
+        let busca = placa || chassi || renavam;
+        let url = '/api/historico';
+        if (busca) {
+            url += '?busca=' + encodeURIComponent(busca);
+        }
+
+        const resp = await fetch(url);
+        const data2 = await resp.json();
+        if (data2.sucesso) {
+            let consultas = data2.consultas;
+
+            // Filtro por data (client-side)
+            if (data) {
+                consultas = consultas.filter(c => c.data_consulta.startsWith(data.split('-').reverse().join('/')));
             }
+
+            let html = '';
+            consultas.forEach(c => {
+                const statusColor = c.status_consulta === 'sucesso' ? 'bg-green-500/20 text-green-300' : 'bg-red-500/20 text-red-300';
+                html += `<div class="bg-white/5 p-3 rounded-lg flex justify-between items-center">
+                    <div>
+                        <p class="text-white font-bold">${c.placa_chassi}</p>
+                        <p class="text-blue-200/60 text-xs">${c.filial}</p>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-blue-200/60 text-xs">${c.data_consulta}</span>
+                        <span class="px-2 py-1 rounded text-xs ${statusColor} ml-2">${c.status_consulta}</span>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('listaHistorico').innerHTML = html || '<p class="text-blue-200/60">Nenhuma consulta encontrada</p>';
         }
     }
 </script>
