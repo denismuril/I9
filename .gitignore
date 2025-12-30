@@ -1,0 +1,32 @@
+# Ignorar arquivo de ambiente real (contém senhas)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Banco de dados SQLite
+*.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Certificados (nunca commitar!)
+*.pfx
+*.p12
+*.pem
+*.key

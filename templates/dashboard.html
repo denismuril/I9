@@ -28,12 +28,30 @@
             display: flex;
         }
 
-        .campos-extras {
-            display: none;
+        .pulse-glow {
+            animation: pulse-glow 2s infinite;
         }
 
-        .campos-extras.active {
-            display: block;
+        @keyframes pulse-glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 20px rgba(34, 197, 94, 0.8);
+            }
+        }
+
+        .campos-bloqueados {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .campos-liberados {
+            opacity: 1;
+            pointer-events: auto;
         }
     </style>
 </head>
@@ -61,24 +79,87 @@
     </header>
 
     <main class="max-w-7xl mx-auto px-4 py-8">
-        <!-- Formulário de Consulta -->
+
+        <!-- Seção de Conexão com Filial -->
         <div class="glass-effect bg-white/10 rounded-2xl p-6 mb-8 border border-white/20">
+            <h2 class="text-2xl font-bold text-white mb-6 text-center">🔐 Conexão com DETRAN</h2>
+
+            <!-- Status de Conexão -->
+            <div id="statusConexao" class="mb-6">
+                {% if filial_conectada %}
+                <!-- Conectado -->
+                <div
+                    class="bg-green-500/20 border border-green-500/30 rounded-xl p-4 flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        <div class="w-3 h-3 bg-green-500 rounded-full pulse-glow"></div>
+                        <div>
+                            <p class="text-green-300 font-semibold">✅ Conexão com DETRAN Estabelecida</p>
+                            <p class="text-green-200/70 text-sm">{{ filial_conectada.nome }} ({{ filial_conectada.uf }})
+                                - Conectado em: {{ filial_conectada.conectado_em }}</p>
+                        </div>
+                    </div>
+                    <button onclick="desconectarFilial()"
+                        class="px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition text-sm">
+                        Desconectar
+                    </button>
+                </div>
+                {% else %}
+                <!-- Desconectado -->
+                <div id="boxDesconectado" class="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4">
+                    <p class="text-yellow-200 text-sm text-center">
+                        <strong>⚠️ Não conectado.</strong> Selecione uma filial para acessar o DETRAN.
+                    </p>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Seleção de Filial (apenas se desconectado) -->
+            {% if not filial_conectada %}
+            <div id="selecaoFilial" class="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
+                <div class="md:col-span-2">
+                    <label class="block text-blue-200 text-sm mb-2">Selecione a Filial</label>
+                    <select id="filialSelect"
+                        class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-blue-400">
+                        <option value="" class="bg-slate-800">-- Selecione uma filial --</option>
+                        {% for filial in filiais %}
+                        <option value="{{ filial.id }}" class="bg-slate-800">{{ filial.nome }} ({{ filial.uf }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <button onclick="conectarFilial()"
+                        class="w-full px-6 py-3 bg-gradient-to-r from-green-600 to-emerald-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        Conectar ao DETRAN
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Formulário de Consulta -->
+        <div id="formContainer"
+            class="glass-effect bg-white/10 rounded-2xl p-6 mb-8 border border-white/20 {{ 'campos-liberados' if filial_conectada else 'campos-bloqueados' }}">
             <h2 class="text-2xl font-bold text-white mb-6 text-center">Consulta de Restrições DETRAN</h2>
 
-            <!-- Aviso sobre requisitos por estado -->
-            <div class="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 mb-6">
-                <p class="text-yellow-200 text-sm">
-                    <strong>⚠️ Atenção:</strong> Os campos obrigatórios variam conforme o estado.
-                    Selecione a UF para ver os campos necessários.
+            {% if not filial_conectada %}
+            <div class="bg-gray-500/20 border border-gray-500/30 rounded-xl p-4 mb-6">
+                <p class="text-gray-300 text-sm text-center">
+                    🔒 <strong>Campos bloqueados.</strong> Conecte-se a uma filial para realizar consultas.
                 </p>
             </div>
+            {% endif %}
 
             <form id="formConsulta" class="space-y-6">
                 <!-- Linha 1: UF e Placa -->
                 <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                         <label class="block text-blue-200 text-sm mb-2">UF *</label>
-                        <select id="uf" required onchange="atualizarCampos()"
+                        <select id="uf" required {{ 'disabled' if not filial_conectada else '' }}
                             class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-blue-400">
                             <option value="" class="bg-slate-800">Selecione...</option>
                             <option value="AC" class="bg-slate-800">AC - Acre</option>
@@ -113,79 +194,27 @@
                     <div>
                         <label class="block text-blue-200 text-sm mb-2">Placa *</label>
                         <input type="text" id="placa" required placeholder="ABC1234 ou ABC1D23" maxlength="7"
+                            {{ 'disabled' if not filial_conectada else '' }}
                             class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400 uppercase">
                     </div>
                     <div>
                         <label class="block text-blue-200 text-sm mb-2">RENAVAM *</label>
-                        <input type="text" id="renavam" required placeholder="00000000000" maxlength="11"
+                        <input type="text" id="renavam" required placeholder="00000000000" maxlength="11" {{ 'disabled'
+                            if not filial_conectada else '' }}
                             class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
                     </div>
                     <div>
                         <label class="block text-blue-200 text-sm mb-2">Chassi *</label>
                         <input type="text" id="chassi" required placeholder="9BWZZZ377VT004251" maxlength="17"
+                            {{ 'disabled' if not filial_conectada else '' }}
                             class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400 uppercase">
-                    </div>
-                </div>
-
-                <!-- Campos extras TO (CPF/CNPJ) -->
-                <div id="camposTocantins" class="campos-extras">
-                    <div class="bg-blue-500/20 border border-blue-500/30 rounded-xl p-4 mb-4">
-                        <p class="text-blue-200 text-sm">🔹 <strong>Tocantins (TO):</strong> É necessário informar o
-                            CPF/CNPJ do proprietário.</p>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-blue-200 text-sm mb-2">CPF/CNPJ do Proprietário *</label>
-                            <input type="text" id="cpfCnpj" placeholder="000.000.000-00 ou 00.000.000/0000-00"
-                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Campos extras MG, RS, SC (Login gov.br) -->
-                <div id="camposGovBr" class="campos-extras">
-                    <div class="bg-green-500/20 border border-green-500/30 rounded-xl p-4 mb-4">
-                        <p class="text-green-200 text-sm">🔹 <strong>MG, RS, SC:</strong> É necessário login no
-                            <strong>gov.br</strong> para consulta.</p>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-blue-200 text-sm mb-2">Login gov.br (CPF) *</label>
-                            <input type="text" id="loginGovBr" placeholder="000.000.000-00"
-                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
-                        </div>
-                        <div>
-                            <label class="block text-blue-200 text-sm mb-2">Senha gov.br *</label>
-                            <input type="password" id="senhaGovBr" placeholder="Sua senha do gov.br"
-                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Campos extras SP (Login DETRAN-SP) -->
-                <div id="camposDetranSP" class="campos-extras">
-                    <div class="bg-purple-500/20 border border-purple-500/30 rounded-xl p-4 mb-4">
-                        <p class="text-purple-200 text-sm">🔹 <strong>São Paulo (SP):</strong> É necessário login no
-                            <strong>DETRAN-SP</strong> para consulta.</p>
-                    </div>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-blue-200 text-sm mb-2">Login DETRAN-SP (CPF) *</label>
-                            <input type="text" id="loginDetranSP" placeholder="000.000.000-00"
-                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
-                        </div>
-                        <div>
-                            <label class="block text-blue-200 text-sm mb-2">Senha DETRAN-SP *</label>
-                            <input type="password" id="senhaDetranSP" placeholder="Sua senha do DETRAN-SP"
-                                class="w-full px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white placeholder-blue-200/50 focus:outline-none focus:border-blue-400">
-                        </div>
                     </div>
                 </div>
 
                 <!-- Botão Consultar -->
                 <div class="flex justify-center">
-                    <button type="submit"
-                        class="px-12 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2">
+                    <button type="submit" {{ 'disabled' if not filial_conectada else '' }}
+                        class="px-12 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -248,34 +277,46 @@
     </main>
 
     <script>
-        // Controle de campos condicionais por UF
-        function atualizarCampos() {
-            const uf = document.getElementById('uf').value;
+        // Conectar à filial
+        async function conectarFilial() {
+            const filialId = document.getElementById('filialSelect').value;
 
-            // Oculta todos os campos extras
-            document.getElementById('camposTocantins').classList.remove('active');
-            document.getElementById('camposGovBr').classList.remove('active');
-            document.getElementById('camposDetranSP').classList.remove('active');
+            if (!filialId) {
+                alert('Por favor, selecione uma filial.');
+                return;
+            }
 
-            // Remove required de todos os campos extras
-            document.getElementById('cpfCnpj').required = false;
-            document.getElementById('loginGovBr').required = false;
-            document.getElementById('senhaGovBr').required = false;
-            document.getElementById('loginDetranSP').required = false;
-            document.getElementById('senhaDetranSP').required = false;
+            const formData = new FormData();
+            formData.append('filial_id', filialId);
 
-            // Mostra campos específicos por UF
-            if (uf === 'TO') {
-                document.getElementById('camposTocantins').classList.add('active');
-                document.getElementById('cpfCnpj').required = true;
-            } else if (['MG', 'RS', 'SC'].includes(uf)) {
-                document.getElementById('camposGovBr').classList.add('active');
-                document.getElementById('loginGovBr').required = true;
-                document.getElementById('senhaGovBr').required = true;
-            } else if (uf === 'SP') {
-                document.getElementById('camposDetranSP').classList.add('active');
-                document.getElementById('loginDetranSP').required = true;
-                document.getElementById('senhaDetranSP').required = true;
+            try {
+                const resp = await fetch('/conectar_filial', { method: 'POST', body: formData });
+                const data = await resp.json();
+
+                if (data.sucesso) {
+                    // Recarrega a página para atualizar o estado
+                    location.reload();
+                } else {
+                    alert('Erro: ' + data.erro);
+                }
+            } catch (err) {
+                alert('Erro de conexão: ' + err.message);
+            }
+        }
+
+        // Desconectar da filial
+        async function desconectarFilial() {
+            if (!confirm('Deseja realmente desconectar?')) return;
+
+            try {
+                const resp = await fetch('/desconectar_filial', { method: 'POST' });
+                const data = await resp.json();
+
+                if (data.sucesso) {
+                    location.reload();
+                }
+            } catch (err) {
+                alert('Erro: ' + err.message);
             }
         }
 
@@ -298,17 +339,6 @@
             formData.append('renavam', renavam);
             formData.append('chassi', chassi);
             formData.append('tipo_busca', 'placa');
-
-            // Campos extras por UF
-            if (uf === 'TO') {
-                formData.append('cpf_cnpj', document.getElementById('cpfCnpj').value);
-            } else if (['MG', 'RS', 'SC'].includes(uf)) {
-                formData.append('login_govbr', document.getElementById('loginGovBr').value);
-                formData.append('senha_govbr', document.getElementById('senhaGovBr').value);
-            } else if (uf === 'SP') {
-                formData.append('login_detran_sp', document.getElementById('loginDetranSP').value);
-                formData.append('senha_detran_sp', document.getElementById('senhaDetranSP').value);
-            }
 
             try {
                 const resp = await fetch('/consultar', { method: 'POST', body: formData });
@@ -402,8 +432,9 @@
                 if (data.sucesso) {
                     let html = '';
                     data.consultas.forEach(c => {
+                        const filialInfo = c.filial ? ` | ${c.filial}` : '';
                         html += `<div class="bg-white/5 p-3 rounded-lg flex justify-between items-center">
-                            <div><p class="text-white font-bold">${c.placa_chassi}</p><p class="text-blue-200/60 text-xs">${c.resultado_resumido}</p></div>
+                            <div><p class="text-white font-bold">${c.placa_chassi}</p><p class="text-blue-200/60 text-xs">${c.resultado_resumido}${filialInfo}</p></div>
                             <span class="text-blue-200/60 text-xs">${c.data_consulta}</span>
                         </div>`;
                     });

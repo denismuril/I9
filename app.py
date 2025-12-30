@@ -2,6 +2,9 @@
 Sistema I9 - Consulta de Histórico Veicular
 Aplicação Flask para concessionárias de veículos
 Autor: Sistema I9
+
+SEGURANÇA: Todas as credenciais são lidas de variáveis de ambiente.
+Configure o arquivo .env conforme .env.example antes de executar.
 """
 
 import os
@@ -11,22 +14,29 @@ from datetime import datetime
 from functools import wraps
 
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from dotenv import load_dotenv
+
+# Carrega variáveis de ambiente
+load_dotenv()
+
+# Importa configurações seguras
+from config import (
+    Config,
+    listar_filiais,
+    obter_certificado_filial,
+    simular_autenticacao_certificado,
+    validar_usuario
+)
 
 # ==============================================================================
 # CONFIGURAÇÃO DA APLICAÇÃO
 # ==============================================================================
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)  # Chave secreta para sessões
+app.secret_key = Config.SECRET_KEY
 
 # Configuração do banco de dados
-DATABASE = 'sistema_i9.db'
-
-# Credenciais de teste (ALTERAR EM PRODUÇÃO!)
-USUARIOS = {
-    'admin': 'admin123',
-    'vendedor': 'venda2024'
-}
+DATABASE = Config.DATABASE
 
 
 # ==============================================================================
@@ -53,171 +63,14 @@ def init_db():
             placa_chassi VARCHAR(50) NOT NULL,
             tipo_busca VARCHAR(20) NOT NULL,
             resultado_resumido TEXT,
-            status_consulta VARCHAR(20) DEFAULT 'sucesso'
+            status_consulta VARCHAR(20) DEFAULT 'sucesso',
+            filial VARCHAR(50)
         )
     ''')
     
     conn.commit()
     conn.close()
 
-
-# ==============================================================================
-# CONFIGURAÇÃO DA API INFOSIMPLES - DETRAN RESTRIÇÕES
-# ==============================================================================
-# 
-# Documentação: https://infosimples.com/consultas/detran-restricoes/
-# 
-# COMO CONFIGURAR:
-# 1. Acesse https://infosimples.com e crie sua conta
-# 2. Obtenha sua API Key no painel do usuário
-# 3. Substitua "SUA_API_KEY_AQUI" pela sua chave
-# 4. Descomente a função consultar_veiculo_api_real() abaixo
-#
-# ==============================================================================
-
-# Sua API Key da Infosimples (obtenha em https://infosimples.com)
-INFOSIMPLES_API_KEY = "_IMLYfOwRzmPbMATaNvO984h-fej5E023JKIyyrO"
-
-# URLs das APIs da Infosimples
-API_URLS = {
-    'detran_restricoes': 'https://api.infosimples.com/api/v2/consultas/detran/restricoes',
-    'detran_veiculos': 'https://api.infosimples.com/api/v2/consultas/detran/veiculos',
-}
-
-# ==============================================================================
-# OBSERVAÇÕES POR ESTADO - DETRAN RESTRIÇÕES
-# ==============================================================================
-# 
-# Cada estado brasileiro pode ter particularidades na consulta. Abaixo as 
-# observações importantes:
-#
-# ╔══════════════════════════════════════════════════════════════════════════════╗
-# ║  ESTADO  ║  OBSERVAÇÕES                                                      ║
-# ╠══════════════════════════════════════════════════════════════════════════════╣
-# ║  AC      ║  Consulta por placa e renavam                                     ║
-# ║  AL      ║  Consulta por placa. Pode exigir captcha em momentos de pico      ║
-# ║  AM      ║  Consulta por placa e renavam                                     ║
-# ║  AP      ║  Consulta por placa                                               ║
-# ║  BA      ║  Consulta por placa e renavam. Sistema pode ter instabilidades    ║
-# ║  CE      ║  Consulta por placa. Retorna restrições detalhadas                ║
-# ║  DF      ║  Consulta por placa e renavam. Sistema estável                    ║
-# ║  ES      ║  Consulta por placa. Pode ter delays em horários de pico          ║
-# ║  GO      ║  Consulta por placa e renavam                                     ║
-# ║  MA      ║  Consulta por placa                                               ║
-# ║  MG      ║  Consulta por placa. Sistema robusto e estável                    ║
-# ║  MS      ║  Consulta por placa e renavam                                     ║
-# ║  MT      ║  Consulta por placa                                               ║
-# ║  PA      ║  Consulta por placa. Pode ter instabilidades ocasionais           ║
-# ║  PB      ║  Consulta por placa                                               ║
-# ║  PE      ║  Consulta por placa e chassi. Sistema bem estruturado             ║
-# ║  PI      ║  Consulta por placa                                               ║
-# ║  PR      ║  Consulta por placa e renavam. Excelente detalhamento             ║
-# ║  RJ      ║  Consulta por placa, renavam e chassi. Alta disponibilidade       ║
-# ║  RN      ║  Consulta por placa                                               ║
-# ║  RO      ║  Consulta por placa                                               ║
-# ║  RR      ║  Consulta por placa. Sistema pode ter delays                      ║
-# ║  RS      ║  Consulta por placa e renavam. Sistema muito estável              ║
-# ║  SC      ║  Consulta por placa. Retorna dados completos                      ║
-# ║  SE      ║  Consulta por placa                                               ║
-# ║  SP      ║  Consulta por placa, renavam e chassi. Sistema mais robusto       ║
-# ║  TO      ║  Consulta por placa                                               ║
-# ╚══════════════════════════════════════════════════════════════════════════════╝
-#
-# ==============================================================================
-
-# ==============================================================================
-# FUNÇÃO DE INTEGRAÇÃO REAL COM API INFOSIMPLES (DESCOMENTE PARA USAR)
-# ==============================================================================
-#
-# REQUISITOS POR ESTADO:
-# ----------------------
-# TODOS OS ESTADOS: uf, placa, renavam, chassi (obrigatórios)
-# TO (Tocantins): + cpf_cnpj (CPF/CNPJ do proprietário)
-# MG, RS, SC: + login_govbr, senha_govbr (credenciais gov.br)
-# SP (São Paulo): + login_detran_sp, senha_detran_sp (credenciais DETRAN-SP)
-#
-# import requests
-#
-# def consultar_veiculo_api_real(uf, placa, renavam, chassi, **kwargs):
-#     """
-#     Consulta real à API da Infosimples - DETRAN Restrições
-#     
-#     Args:
-#         uf: Estado do veículo (sigla, ex: SP, RJ, MG)
-#         placa: Placa do veículo (formato: ABC1234 ou ABC1D23)
-#         renavam: Número do RENAVAM
-#         chassi: Número do chassi (17 caracteres)
-#         **kwargs: Campos adicionais por estado:
-#             - cpf_cnpj: CPF/CNPJ do proprietário (TO)
-#             - login_govbr: Login gov.br (MG, RS, SC)
-#             - senha_govbr: Senha gov.br (MG, RS, SC)
-#             - login_detran_sp: Login DETRAN-SP (SP)
-#             - senha_detran_sp: Senha DETRAN-SP (SP)
-#     
-#     Returns:
-#         dict: Dados retornados pela API
-#     """
-#     
-#     if INFOSIMPLES_API_KEY == "SUA_API_KEY_AQUI":
-#         raise ValueError("Configure sua API Key da Infosimples!")
-#     
-#     # Payload base (obrigatório para todos os estados)
-#     payload = {
-#         'token': INFOSIMPLES_API_KEY,
-#         'uf': uf.upper(),
-#         'placa': placa.upper().replace('-', ''),
-#         'renavam': renavam,
-#         'chassi': chassi.upper(),
-#         'timeout': 300
-#     }
-#     
-#     # Campos específicos por estado
-#     if uf.upper() == 'TO':
-#         # Tocantins: CPF/CNPJ do proprietário
-#         if 'cpf_cnpj' in kwargs:
-#             payload['cpf'] = kwargs['cpf_cnpj']
-#     
-#     elif uf.upper() in ['MG', 'RS', 'SC']:
-#         # MG, RS, SC: Credenciais gov.br
-#         if 'login_govbr' in kwargs:
-#             payload['govbr_user'] = kwargs['login_govbr']
-#         if 'senha_govbr' in kwargs:
-#             payload['govbr_password'] = kwargs['senha_govbr']
-#     
-#     elif uf.upper() == 'SP':
-#         # São Paulo: Credenciais DETRAN-SP
-#         if 'login_detran_sp' in kwargs:
-#             payload['detran_user'] = kwargs['login_detran_sp']
-#         if 'senha_detran_sp' in kwargs:
-#             payload['detran_password'] = kwargs['senha_detran_sp']
-#     
-#     try:
-#         response = requests.post(
-#             API_URLS['detran_restricoes'],
-#             data=payload,
-#             timeout=120
-#         )
-#         response.raise_for_status()
-#         
-#         dados = response.json()
-#         
-#         if dados.get('code') == 200:
-#             return {
-#                 'encontrado': True,
-#                 'dados_api': dados.get('data', []),
-#                 'site_receipts': dados.get('site_receipts', [])
-#             }
-#         else:
-#             return {
-#                 'encontrado': False,
-#                 'erro': dados.get('code_message', 'Erro desconhecido'),
-#                 'codigo': dados.get('code')
-#             }
-#             
-#     except requests.Timeout:
-#         return {'encontrado': False, 'erro': 'Timeout. Tente novamente.'}
-#     except requests.RequestException as e:
-#         return {'encontrado': False, 'erro': f'Erro: {str(e)}'}
 
 # ==============================================================================
 # FUNÇÃO DE INTEGRAÇÃO COM API (SIMULADA PARA TESTES)
@@ -228,9 +81,8 @@ def consultar_veiculo_api(placa_chassi, tipo_busca, **kwargs):
     Simula a consulta à API da Infosimples para obter dados do veículo.
     
     Para usar a API REAL da Infosimples:
-    1. Configure INFOSIMPLES_API_KEY acima com sua chave
-    2. Descomente a função consultar_veiculo_api_real()
-    3. Substitua esta função pela função real
+    1. Configure INFOSIMPLES_API_KEY no arquivo .env
+    2. Implemente a função consultar_veiculo_api_real()
     
     Args:
         placa_chassi: Placa ou chassi do veículo
@@ -519,7 +371,20 @@ def login_required(f):
     return decorated_function
 
 
-def salvar_consulta(usuario, placa_chassi, tipo_busca, resultado):
+def conexao_required(f):
+    """Decorator para proteger rotas que requerem conexão com filial."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if 'filial_conectada' not in session:
+            return jsonify({
+                'sucesso': False,
+                'erro': 'É necessário conectar a uma filial antes de realizar consultas.'
+            })
+        return f(*args, **kwargs)
+    return decorated_function
+
+
+def salvar_consulta(usuario, placa_chassi, tipo_busca, resultado, filial=None):
     """Salva a consulta no histórico do banco de dados."""
     try:
         conn = get_db_connection()
@@ -536,9 +401,9 @@ def salvar_consulta(usuario, placa_chassi, tipo_busca, resultado):
         
         cursor.execute('''
             INSERT INTO historico_consultas 
-            (usuario, placa_chassi, tipo_busca, resultado_resumido, status_consulta)
-            VALUES (?, ?, ?, ?, ?)
-        ''', (usuario, placa_chassi.upper(), tipo_busca, resumo, status))
+            (usuario, placa_chassi, tipo_busca, resultado_resumido, status_consulta, filial)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (usuario, placa_chassi.upper(), tipo_busca, resumo, status, filial))
         
         conn.commit()
         conn.close()
@@ -570,7 +435,8 @@ def login():
             flash('Por favor, preencha todos os campos.', 'error')
             return render_template('login.html')
         
-        if usuario in USUARIOS and USUARIOS[usuario] == senha:
+        # Valida usando config.py (credenciais do .env)
+        if validar_usuario(usuario, senha):
             session['usuario'] = usuario
             session['login_time'] = datetime.now().strftime('%d/%m/%Y %H:%M')
             flash(f'Bem-vindo(a), {usuario}!', 'success')
@@ -593,11 +459,98 @@ def logout():
 @login_required
 def dashboard():
     """Página principal de consulta."""
-    return render_template('dashboard.html', usuario=session.get('usuario'))
+    # Passa lista de filiais para o template
+    filiais = listar_filiais()
+    filial_conectada = session.get('filial_conectada')
+    
+    return render_template(
+        'dashboard.html', 
+        usuario=session.get('usuario'),
+        filiais=filiais,
+        filial_conectada=filial_conectada
+    )
+
+
+@app.route('/filiais', methods=['GET'])
+@login_required
+def get_filiais():
+    """Retorna a lista de filiais disponíveis."""
+    return jsonify({
+        'sucesso': True,
+        'filiais': listar_filiais()
+    })
+
+
+@app.route('/conectar_filial', methods=['POST'])
+@login_required
+def conectar_filial():
+    """
+    Conecta a uma filial usando o certificado digital configurado.
+    
+    Esta rota:
+    1. Recebe o ID da filial
+    2. Busca o certificado correspondente nas variáveis de ambiente
+    3. Simula a leitura do .pfx e autenticação com o DETRAN
+    4. Armazena a conexão na sessão
+    """
+    filial_id = request.form.get('filial_id', '').strip()
+    
+    if not filial_id:
+        return jsonify({
+            'sucesso': False,
+            'erro': 'Por favor, selecione uma filial.'
+        })
+    
+    # Obtém informações do certificado (caminho e senha do .env)
+    cert_info = obter_certificado_filial(filial_id)
+    
+    if not cert_info:
+        return jsonify({
+            'sucesso': False,
+            'erro': f'Certificado não configurado para a filial selecionada. Verifique o arquivo .env.'
+        })
+    
+    # Simula autenticação com o certificado
+    resultado = simular_autenticacao_certificado(cert_info)
+    
+    if resultado['sucesso']:
+        # Armazena conexão na sessão
+        session['filial_conectada'] = {
+            'id': cert_info.filial_id,
+            'nome': cert_info.filial_nome,
+            'uf': cert_info.uf,
+            'conectado_em': datetime.now().strftime('%d/%m/%Y %H:%M:%S')
+        }
+        
+        return jsonify({
+            'sucesso': True,
+            'mensagem': resultado['mensagem'],
+            'filial': cert_info.filial_nome,
+            'uf': cert_info.uf
+        })
+    else:
+        return jsonify({
+            'sucesso': False,
+            'erro': 'Falha na autenticação com o certificado.'
+        })
+
+
+@app.route('/desconectar_filial', methods=['POST'])
+@login_required
+def desconectar_filial():
+    """Desconecta da filial atual."""
+    if 'filial_conectada' in session:
+        del session['filial_conectada']
+    
+    return jsonify({
+        'sucesso': True,
+        'mensagem': 'Desconectado com sucesso.'
+    })
 
 
 @app.route('/consultar', methods=['POST'])
 @login_required
+@conexao_required
 def consultar():
     """Processa a consulta de veículo."""
     placa_chassi = request.form.get('placa_chassi', '').strip()
@@ -628,8 +581,15 @@ def consultar():
     try:
         resultado = consultar_veiculo_api(placa_chassi, tipo_busca)
         
-        # Salva no histórico
-        salvar_consulta(session.get('usuario'), placa_chassi, tipo_busca, resultado)
+        # Salva no histórico (com info da filial)
+        filial_info = session.get('filial_conectada', {})
+        salvar_consulta(
+            session.get('usuario'), 
+            placa_chassi, 
+            tipo_busca, 
+            resultado,
+            filial=filial_info.get('nome')
+        )
         
         return jsonify({
             'sucesso': True,
@@ -654,7 +614,7 @@ def historico():
         # Busca as últimas 50 consultas do usuário
         cursor.execute('''
             SELECT id, data_consulta, placa_chassi, tipo_busca, 
-                   resultado_resumido, status_consulta
+                   resultado_resumido, status_consulta, filial
             FROM historico_consultas
             WHERE usuario = ?
             ORDER BY data_consulta DESC
@@ -684,14 +644,22 @@ if __name__ == '__main__':
     # Inicializa o banco de dados
     init_db()
     
+    # Verifica se .env existe
+    if not os.path.exists('.env'):
+        print("\n" + "=" * 60)
+        print("   ⚠️  ATENÇÃO: Arquivo .env não encontrado!")
+        print("=" * 60)
+        print("\n📋 Copie .env.example para .env e configure suas credenciais.")
+        print("   Exemplo: copy .env.example .env")
+        print("\n" + "=" * 60 + "\n")
+    
     # Inicia o servidor Flask
-    print("\n" + "="*60)
-    print("   SISTEMA I9 - Consulta Veicular")
-    print("="*60)
+    print("\n" + "=" * 60)
+    print("   SISTEMA I9 - Consulta Veicular (Modo Seguro)")
+    print("=" * 60)
     print("\n🚀 Servidor iniciado em: http://localhost:5000")
-    print("\n📋 Credenciais de teste:")
-    print("   Usuário: admin    | Senha: admin123")
-    print("   Usuário: vendedor | Senha: venda2024")
-    print("\n" + "="*60 + "\n")
+    print("\n🔐 Credenciais configuradas via arquivo .env")
+    print("📜 Certificados por filial configurados via .env")
+    print("\n" + "=" * 60 + "\n")
     
     app.run(host='0.0.0.0', port=5000, debug=True)
