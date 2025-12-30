@@ -18,7 +18,8 @@ class Filial(db.Model):
     uf = db.Column(db.String(2), nullable=False)
     endereco = db.Column(db.String(200))
     cert_path = db.Column(db.String(255))  # Caminho do arquivo .pfx
-    cert_senha_env = db.Column(db.String(50))  # Nome da variável de ambiente com a senha
+    cert_senha_env = db.Column(db.String(50))  # Nome da var de ambiente
+    cert_validade = db.Column(db.Date)  # Data de validade do certificado
     ativa = db.Column(db.Boolean, default=True)
     criado_em = db.Column(db.DateTime, default=datetime.utcnow)
     

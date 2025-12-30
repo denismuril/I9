@@ -131,8 +131,9 @@ def excluir_usuario(id):
 @admin_required
 def listar_filiais():
     """Lista todas as filiais."""
+    from datetime import date
     filiais = Filial.query.order_by(Filial.nome).all()
-    return render_template('admin/filiais.html', filiais=filiais)
+    return render_template('admin/filiais.html', filiais=filiais, now=date.today())
 
 
 @admin_bp.route('/filiais/criar', methods=['POST'])
@@ -176,14 +177,24 @@ def criar_filial():
 @admin_required
 def editar_filial(id):
     """Edita uma filial existente."""
+    from datetime import datetime
+
     filial = Filial.query.get_or_404(id)
-    
+
     filial.nome = request.form.get('nome', filial.nome).strip()
     filial.uf = request.form.get('uf', filial.uf).strip().upper()
-    filial.endereco = request.form.get('endereco', filial.endereco).strip()
-    filial.cert_path = request.form.get('cert_path', filial.cert_path).strip()
+    filial.endereco = request.form.get('endereco', filial.endereco or '').strip()
+    filial.cert_path = request.form.get('cert_path', filial.cert_path or '').strip()
     filial.ativa = request.form.get('ativa') == 'on'
-    
+
+    # Validade do certificado
+    cert_validade = request.form.get('cert_validade', '')
+    if cert_validade:
+        try:
+            filial.cert_validade = datetime.strptime(cert_validade, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
     db.session.commit()
     flash(f'Filial {filial.nome} atualizada!', 'success')
     return redirect(url_for('admin.listar_filiais'))

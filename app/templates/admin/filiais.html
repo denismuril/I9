@@ -57,8 +57,9 @@
                         <th class="py-3 text-blue-200 text-sm">CNPJ</th>
                         <th class="py-3 text-blue-200 text-sm">UF</th>
                         <th class="py-3 text-blue-200 text-sm">Certificado</th>
-                        <th class="py-3 text-blue-200 text-sm">Var. Senha</th>
+                        <th class="py-3 text-blue-200 text-sm">Validade Cert.</th>
                         <th class="py-3 text-blue-200 text-sm">Status</th>
+                        <th class="py-3 text-blue-200 text-sm">Ações</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -69,10 +70,17 @@
                         <td class="py-3 text-blue-200/70">{{ f.cnpj }}</td>
                         <td class="py-3 text-white">{{ f.uf }}</td>
                         <td class="py-3 text-blue-200/70 text-sm">{{ f.cert_path or 'Não configurado' }}</td>
-                        <td class="py-3 text-yellow-300 text-xs font-mono">CERT_FILIAL_{{ f.id }}_PASS</td>
+                        <td
+                            class="py-3 text-sm {{ 'text-red-300' if f.cert_validade and f.cert_validade < now else 'text-green-300' }}">
+                            {{ f.cert_validade.strftime('%d/%m/%Y') if f.cert_validade else 'N/A' }}</td>
                         <td class="py-3"><span
                                 class="px-2 py-1 text-xs rounded {{ 'bg-green-500/20 text-green-300' if f.ativa else 'bg-red-500/20 text-red-300' }}">{{
                                 'Ativa' if f.ativa else 'Inativa' }}</span></td>
+                        <td class="py-3">
+                            <button
+                                onclick="editarFilial({{ f.id }}, '{{ f.nome }}', '{{ f.uf }}', '{{ f.cert_path or '' }}', '{{ f.cert_validade.strftime('%Y-%m-%d') if f.cert_validade else '' }}', {{ f.ativa|tojson }})"
+                                class="text-blue-400 hover:text-blue-300 text-sm">Editar</button>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -80,4 +88,74 @@
         </div>
     </div>
 </main>
+
+<!-- Modal Editar Filial -->
+<div id="modalFilial" class="fixed inset-0 bg-black/70 hidden items-center justify-center z-50">
+    <div class="glass-effect bg-slate-800 rounded-2xl p-6 w-full max-w-lg border border-white/20 m-4">
+        <h3 class="text-xl font-bold text-white mb-4">✏️ Editar Filial</h3>
+        <form id="formFilial" method="POST">
+            <div class="space-y-4">
+                <div>
+                    <label class="text-blue-200 text-sm">Nome da Filial</label>
+                    <input type="text" name="nome" id="filialNome" required
+                        class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
+                </div>
+                <div>
+                    <label class="text-blue-200 text-sm">UF</label>
+                    <select name="uf" id="filialUF"
+                        class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
+                        {% for estado in
+                        ['AC','AL','AM','AP','BA','CE','DF','ES','GO','MA','MG','MS','MT','PA','PB','PE','PI','PR','RJ','RN','RO','RR','RS','SC','SE','SP','TO']
+                        %}
+                        <option value="{{ estado }}" class="bg-slate-800">{{ estado }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-blue-200 text-sm">Caminho do Certificado (.pfx)</label>
+                    <input type="text" name="cert_path" id="filialCertPath"
+                        class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white"
+                        placeholder="/home/ubuntu/I9/cert/arquivo.pfx">
+                </div>
+                <div>
+                    <label class="text-blue-200 text-sm">Validade do Certificado</label>
+                    <input type="date" name="cert_validade" id="filialCertValidade"
+                        class="w-full px-4 py-2 bg-white/10 border border-white/20 rounded-lg text-white">
+                </div>
+                <div class="p-3 bg-yellow-500/10 rounded-lg">
+                    <p class="text-yellow-300 text-sm">⚠️ A senha do certificado está na variável de ambiente. Para
+                        alterar, edite o arquivo <code>.env</code> no servidor.</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="ativa" id="filialAtiva" class="rounded">
+                    <label for="filialAtiva" class="text-white text-sm">Filial Ativa</label>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button type="submit"
+                    class="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">Salvar</button>
+                <button type="button" onclick="fecharModal()"
+                    class="flex-1 px-4 py-2 bg-white/10 text-white rounded-lg hover:bg-white/20">Cancelar</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    function editarFilial(id, nome, uf, certPath, certValidade, ativa) {
+        document.getElementById('formFilial').action = '/admin/filiais/' + id + '/editar';
+        document.getElementById('filialNome').value = nome;
+        document.getElementById('filialUF').value = uf;
+        document.getElementById('filialCertPath').value = certPath;
+        document.getElementById('filialCertValidade').value = certValidade;
+        document.getElementById('filialAtiva').checked = ativa;
+        document.getElementById('modalFilial').classList.remove('hidden');
+        document.getElementById('modalFilial').classList.add('flex');
+    }
+
+    function fecharModal() {
+        document.getElementById('modalFilial').classList.add('hidden');
+        document.getElementById('modalFilial').classList.remove('flex');
+    }
+</script>
 {% endblock %}
