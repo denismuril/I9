@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema I9 - Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        .glass-effect {
+            backdrop-filter: blur(16px);
+        }
+
+        .gradient-bg {
+            background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 50%, #0f172a 100%);
+        }
+
+        .loading {
+            display: none;
+        }
+
+        .loading.active {
+            display: flex;
+        }
+    </style>
+</head>
+
+<body class="gradient-bg min-h-screen">
+    <!-- Header -->
+    <header class="glass-effect bg-white/5 border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <div
+                    class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                </div>
+                <span class="text-xl font-bold text-white">Sistema I9</span>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="text-blue-200 text-sm">Olá, <strong>{{ usuario }}</strong></span>
+                <a href="{{ url_for('logout') }}"
+                    class="px-4 py-2 bg-red-500/20 text-red-300 rounded-lg hover:bg-red-500/30 transition text-sm">Sair</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <!-- Busca -->
+        <div class="glass-effect bg-white/10 rounded-2xl p-6 mb-8 border border-white/20">
+            <h2 class="text-2xl font-bold text-white mb-6 text-center">Consulta de Veículo</h2>
+            <form id="formConsulta" class="space-y-4">
+                <div class="flex flex-col md:flex-row gap-4">
+                    <select id="tipoBusca"
+                        class="px-4 py-3 bg-white/10 border border-white/20 rounded-xl text-white focus:outline-none focus:border-blue-400">
+                        <option value="placa" class="bg-slate-800">Placa</option>
+                        <option value="chassi" class="bg-slate-800">Chassi</option>
+                    </select>
+                    <input type="text" id="placaChassi" placeholder="Digite a placa (ABC-1234) ou chassi"
+                        class="flex-1 px-6 py-4 bg-white/10 border border-white/20 rounded-xl text-white text-lg placeholder-blue-200/50 focus:outline-none focus:border-blue-400 uppercase">
+                    <button type="submit"
+                        class="px-8 py-4 bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-semibold rounded-xl hover:shadow-xl transition-all flex items-center gap-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Consultar
+                    </button>
+                </div>
+            </form>
+            <p class="text-blue-200/60 text-sm mt-3 text-center">Placas de teste: ABC1234, XYZ9876, DEF5678</p>
+        </div>
+
+        <!-- Loading -->
+        <div id="loading" class="loading justify-center mb-8">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+        </div>
+
+        <!-- Erro -->
+        <div id="erro" class="hidden glass-effect bg-red-500/20 border border-red-500/30 rounded-2xl p-6 mb-8">
+            <p class="text-red-200 text-center" id="erroMsg"></p>
+        </div>
+
+        <!-- Resultado -->
+        <div id="resultado" class="hidden space-y-6">
+            <!-- Dados do Veículo -->
+            <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+                <h3 class="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <svg class="w-6 h-6 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    Dados do Veículo
+                </h3>
+                <div id="dadosVeiculo" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+            </div>
+
+            <!-- IPVA -->
+            <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+                <h3 class="text-xl font-bold text-white mb-4">💰 IPVA</h3>
+                <div id="dadosIPVA" class="grid grid-cols-2 md:grid-cols-4 gap-4"></div>
+            </div>
+
+            <!-- Multas -->
+            <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+                <h3 class="text-xl font-bold text-white mb-4">🚨 Multas</h3>
+                <div id="dadosMultas"></div>
+            </div>
+
+            <!-- Restrições -->
+            <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+                <h3 class="text-xl font-bold text-white mb-4">⚠️ Restrições</h3>
+                <div id="dadosRestricoes"></div>
+            </div>
+
+            <!-- Leilão -->
+            <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+                <h3 class="text-xl font-bold text-white mb-4">🔨 Histórico de Leilão</h3>
+                <div id="dadosLeilao"></div>
+            </div>
+
+            <!-- Proprietários -->
+            <div class="glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+                <h3 class="text-xl font-bold text-white mb-4">👤 Histórico de Proprietários</h3>
+                <div id="dadosProprietarios"></div>
+            </div>
+        </div>
+
+        <!-- Histórico -->
+        <div class="mt-8">
+            <button onclick="carregarHistorico()" class="text-blue-300 hover:text-blue-200 text-sm underline">Ver meu
+                histórico de consultas</button>
+            <div id="historico" class="hidden mt-4 glass-effect bg-white/10 rounded-2xl p-6 border border-white/20">
+                <h3 class="text-lg font-bold text-white mb-4">Últimas Consultas</h3>
+                <div id="listaHistorico" class="space-y-2"></div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        document.getElementById('formConsulta').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const placa = document.getElementById('placaChassi').value;
+            const tipo = document.getElementById('tipoBusca').value;
+
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('resultado').classList.add('hidden');
+            document.getElementById('erro').classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('placa_chassi', placa);
+            formData.append('tipo_busca', tipo);
+
+            try {
+                const resp = await fetch('/consultar', { method: 'POST', body: formData });
+                const data = await resp.json();
+                document.getElementById('loading').classList.remove('active');
+
+                if (!data.sucesso) {
+                    document.getElementById('erroMsg').textContent = data.erro;
+                    document.getElementById('erro').classList.remove('hidden');
+                    return;
+                }
+
+                exibirResultado(data.dados);
+            } catch (err) {
+                document.getElementById('loading').classList.remove('active');
+                document.getElementById('erroMsg').textContent = 'Erro de conexão';
+                document.getElementById('erro').classList.remove('hidden');
+            }
+        });
+
+        function exibirResultado(dados) {
+            document.getElementById('resultado').classList.remove('hidden');
+            const v = dados.dados_veiculo;
+
+            document.getElementById('dadosVeiculo').innerHTML = `
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Placa</p><p class="text-white font-bold">${v.placa}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Modelo</p><p class="text-white font-bold">${v.modelo}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Ano</p><p class="text-white font-bold">${v.ano_fabricacao}/${v.ano_modelo}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Cor</p><p class="text-white font-bold">${v.cor}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Chassi</p><p class="text-white font-bold text-sm">${v.chassi}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Renavam</p><p class="text-white font-bold">${v.renavam}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Combustível</p><p class="text-white font-bold">${v.combustivel}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">UF</p><p class="text-white font-bold">${v.uf}</p></div>
+            `;
+
+            const ipva = dados.ipva;
+            const ipvaColor = ipva.situacao === 'PAGO' ? 'text-green-400' : ipva.situacao === 'PENDENTE' ? 'text-yellow-400' : 'text-red-400';
+            document.getElementById('dadosIPVA').innerHTML = `
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Situação</p><p class="${ipvaColor} font-bold">${ipva.situacao}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Valor</p><p class="text-white font-bold">R$ ${ipva.valor.toFixed(2)}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Ano Ref.</p><p class="text-white font-bold">${ipva.ano_referencia}</p></div>
+                <div class="bg-white/5 p-3 rounded-lg"><p class="text-blue-200/60 text-xs">Vencimento</p><p class="text-white font-bold">${ipva.vencimento}</p></div>
+            `;
+
+            const multas = dados.multas;
+            if (multas.possui_multas) {
+                let html = `<p class="text-red-400 font-bold mb-3">${multas.quantidade} multa(s) - Total: R$ ${multas.valor_total.toFixed(2)}</p><div class="space-y-2">`;
+                multas.detalhes.forEach(m => {
+                    html += `<div class="bg-white/5 p-3 rounded-lg"><p class="text-white text-sm">${m.data} - ${m.descricao}</p><p class="text-blue-200/60 text-xs">${m.local} | R$ ${m.valor.toFixed(2)}</p></div>`;
+                });
+                document.getElementById('dadosMultas').innerHTML = html + '</div>';
+            } else {
+                document.getElementById('dadosMultas').innerHTML = '<p class="text-green-400 font-bold">✓ Nenhuma multa registrada</p>';
+            }
+
+            const rest = dados.restricoes;
+            if (rest.possui_restricoes) {
+                let html = '<div class="space-y-2">';
+                rest.detalhes.forEach(r => {
+                    html += `<div class="bg-red-500/20 p-3 rounded-lg border border-red-500/30"><p class="text-red-300 font-bold">${r.tipo}</p><p class="text-red-200/80 text-sm">${r.instituicao || r.boletim_ocorrencia || ''} - ${r.data_inclusao}</p></div>`;
+                });
+                document.getElementById('dadosRestricoes').innerHTML = html + '</div>';
+            } else {
+                document.getElementById('dadosRestricoes').innerHTML = '<p class="text-green-400 font-bold">✓ Sem restrições</p>';
+            }
+
+            const leilao = dados.leilao;
+            if (leilao.possui_historico_leilao) {
+                const l = leilao.detalhes;
+                document.getElementById('dadosLeilao').innerHTML = `<div class="bg-yellow-500/20 p-4 rounded-lg border border-yellow-500/30">
+                    <p class="text-yellow-300 font-bold">⚠️ VEÍCULO COM HISTÓRICO DE LEILÃO</p>
+                    <p class="text-yellow-200/80 text-sm mt-2">Leiloeiro: ${l.leiloeiro}<br>Data: ${l.data_leilao}<br>Motivo: ${l.motivo}<br>Condição: ${l.condicao}</p>
+                </div>`;
+            } else {
+                document.getElementById('dadosLeilao').innerHTML = '<p class="text-green-400 font-bold">✓ Sem histórico de leilão</p>';
+            }
+
+            const props = dados.proprietarios;
+            let html = `<p class="text-blue-200 mb-3">${props.quantidade} proprietário(s)</p><div class="space-y-2">`;
+            props.historico.forEach((p, i) => {
+                html += `<div class="bg-white/5 p-3 rounded-lg flex justify-between"><span class="text-white">${i + 1}. ${p.tipo}</span><span class="text-blue-200/60 text-sm">${p.uf} | ${p.periodo}</span></div>`;
+            });
+            document.getElementById('dadosProprietarios').innerHTML = html + '</div>';
+        }
+
+        async function carregarHistorico() {
+            const div = document.getElementById('historico');
+            div.classList.toggle('hidden');
+            if (!div.classList.contains('hidden')) {
+                const resp = await fetch('/historico');
+                const data = await resp.json();
+                if (data.sucesso) {
+                    let html = '';
+                    data.consultas.forEach(c => {
+                        html += `<div class="bg-white/5 p-3 rounded-lg flex justify-between items-center">
+                            <div><p class="text-white font-bold">${c.placa_chassi}</p><p class="text-blue-200/60 text-xs">${c.resultado_resumido}</p></div>
+                            <span class="text-blue-200/60 text-xs">${c.data_consulta}</span>
+                        </div>`;
+                    });
+                    document.getElementById('listaHistorico').innerHTML = html || '<p class="text-blue-200/60">Nenhuma consulta realizada</p>';
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
